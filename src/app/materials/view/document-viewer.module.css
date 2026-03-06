@@ -290,6 +290,30 @@
   gap: 10px;
 }
 
+.artifactGuide {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(13, 94, 168, 0.12);
+  background: rgba(13, 94, 168, 0.05);
+}
+
+.guideTitle {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.guideText,
+.guideFormats {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .fieldLabel {
   display: grid;
   gap: 6px;

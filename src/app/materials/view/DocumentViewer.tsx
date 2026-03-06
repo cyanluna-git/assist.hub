@@ -5,6 +5,13 @@ import type { Material, MaterialArtifact, Note } from "@prisma/client";
 import { Download, Edit3, FileUp, Focus, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import {
+  MATERIAL_ARTIFACT_DEFINITIONS,
+  getMaterialArtifactAccept,
+  getMaterialArtifactDefinition,
+  getMaterialArtifactLabel,
+  type MaterialArtifactType,
+} from "@/lib/material-artifacts";
 import { deleteMaterialArtifact, generateMaterialSummary, saveMaterialNote, uploadMaterialArtifact } from "./actions";
 import styles from "./document-viewer.module.css";
 
@@ -30,11 +37,12 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const [summaryMeta, setSummaryMeta] = useState<{ model: string; reasoningEffort: string } | null>(null);
   const [isSummaryPending, startSummaryTransition] = useTransition();
   const [artifacts, setArtifacts] = useState(material.artifacts || []);
-  const [artifactType, setArtifactType] = useState<"NOTEBOOKLM_SUMMARY" | "SLIDES" | "INFOGRAPHIC">("NOTEBOOKLM_SUMMARY");
+  const [artifactType, setArtifactType] = useState<MaterialArtifactType>("NOTEBOOKLM_SUMMARY");
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
   const [isArtifactPending, startArtifactTransition] = useTransition();
   const isDirty = noteContent !== persistedNoteContent;
+  const selectedArtifactDefinition = getMaterialArtifactDefinition(artifactType);
 
   async function handleFullscreenToggle() {
     const root = rootRef.current;
@@ -106,32 +114,6 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
     return "자동 저장";
   }
 
-  function getArtifactLabel(type: string) {
-    switch (type) {
-      case "NOTEBOOKLM_SUMMARY":
-        return "요약";
-      case "SLIDES":
-        return "슬라이드";
-      case "INFOGRAPHIC":
-        return "인포그래픽";
-      default:
-        return type;
-    }
-  }
-
-  function getArtifactAccept(type: string) {
-    switch (type) {
-      case "NOTEBOOKLM_SUMMARY":
-        return ".md,.txt,.pdf";
-      case "SLIDES":
-        return ".pdf,.ppt,.pptx,.key";
-      case "INFOGRAPHIC":
-        return ".png,.jpg,.jpeg,.webp,.svg,.pdf";
-      default:
-        return undefined;
-    }
-  }
-
   return (
     <div ref={rootRef} className={`${styles.layout} ${isFocusMode ? styles.focusLayout : ""}`}>
       <header className={styles.header}>
@@ -194,7 +176,9 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                   <div key={artifact.id} className={styles.artifactRow}>
                     <div className={styles.artifactMeta}>
                       <div className={styles.artifactBadges}>
-                        <span className={styles.artifactTypeBadge}>{getArtifactLabel(artifact.artifactType)}</span>
+                        <span className={styles.artifactTypeBadge}>
+                          {getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)}
+                        </span>
                         <span className={styles.artifactStatusBadge}>{artifact.status}</span>
                       </div>
                       <p className={styles.artifactPath}>
@@ -221,7 +205,9 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                           className={styles.secondaryAction}
                           disabled={isArtifactPending}
                           onClick={() => {
-                            const confirmed = window.confirm(`${getArtifactLabel(artifact.artifactType)} 첨부를 삭제할까요?`);
+                            const confirmed = window.confirm(
+                              `${getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)} 첨부를 삭제할까요?`,
+                            );
                             if (!confirmed) {
                               return;
                             }
@@ -232,7 +218,9 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                               try {
                                 await deleteMaterialArtifact(artifact.id);
                                 setArtifacts((current) => current.filter((item) => item.id !== artifact.id));
-                                setArtifactNotice(`${getArtifactLabel(artifact.artifactType)} 첨부를 삭제했습니다.`);
+                                setArtifactNotice(
+                                  `${getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)} 첨부를 삭제했습니다.`,
+                                );
                               } catch (error) {
                                 setArtifactError(error instanceof Error ? error.message : "artifact 삭제에 실패했습니다.");
                               }
@@ -286,7 +274,9 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                         ...next,
                       ];
                     });
-                    setArtifactNotice(`${getArtifactLabel(result.artifactType)} 첨부가 저장되었습니다.`);
+                    setArtifactNotice(
+                      `${getMaterialArtifactLabel(result.artifactType as MaterialArtifactType)} 첨부가 저장되었습니다.`,
+                    );
                     form.reset();
                   } catch (error) {
                     setArtifactError(error instanceof Error ? error.message : "artifact 업로드에 실패했습니다.");
@@ -301,18 +291,32 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                   name="artifactType"
                   className={styles.select}
                   value={artifactType}
-                  onChange={(event) =>
-                    setArtifactType(event.target.value as "NOTEBOOKLM_SUMMARY" | "SLIDES" | "INFOGRAPHIC")
-                  }
+                  onChange={(event) => setArtifactType(event.target.value as MaterialArtifactType)}
                 >
-                  <option value="NOTEBOOKLM_SUMMARY">요약</option>
-                  <option value="SLIDES">슬라이드</option>
-                  <option value="INFOGRAPHIC">인포그래픽</option>
+                  {MATERIAL_ARTIFACT_DEFINITIONS.map((definition) => (
+                    <option key={definition.type} value={definition.type}>
+                      {definition.label}
+                    </option>
+                  ))}
                 </select>
               </label>
+              {selectedArtifactDefinition ? (
+                <div className={styles.artifactGuide}>
+                  <p className={styles.guideTitle}>{selectedArtifactDefinition.label}</p>
+                  <p className={styles.guideText}>{selectedArtifactDefinition.description}</p>
+                  <p className={styles.guideFormats}>
+                    허용 형식: {selectedArtifactDefinition.extensions.join(", ")}
+                  </p>
+                </div>
+              ) : null}
               <label className={styles.fieldLabel}>
                 File
-                <input name="file" type="file" className={styles.fileInput} accept={getArtifactAccept(artifactType)} />
+                <input
+                  name="file"
+                  type="file"
+                  className={styles.fileInput}
+                  accept={getMaterialArtifactAccept(artifactType)}
+                />
               </label>
               <button type="submit" className={styles.secondaryAction} disabled={isArtifactPending}>
                 <FileUp size={14} />

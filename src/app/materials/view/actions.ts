@@ -10,6 +10,7 @@ import {
   removeArtifactFile,
   saveMaterialArtifactFile,
   upsertMaterialArtifact,
+  validateMaterialArtifactFilename,
 } from "@/lib/material-artifact-storage";
 
 const execFileAsync = promisify(execFile);
@@ -80,6 +81,8 @@ export async function uploadMaterialArtifact(formData: FormData) {
   if (file.size === 0) {
     throw new Error("빈 파일은 업로드할 수 없습니다.");
   }
+
+  validateMaterialArtifactFilename(artifactType, file.name || "artifact.bin");
 
   const material = await prisma.material.findUnique({
     where: { id: materialId },

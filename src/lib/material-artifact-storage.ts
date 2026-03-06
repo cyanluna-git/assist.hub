@@ -1,7 +1,11 @@
 import path from "node:path";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import prisma from "./prisma";
-import { MATERIAL_ARTIFACT_TYPES, type MaterialArtifactType } from "./material-artifacts";
+import {
+  MATERIAL_ARTIFACT_TYPES,
+  getMaterialArtifactExtensions,
+  type MaterialArtifactType,
+} from "./material-artifacts";
 
 function sanitizeSegment(value: string) {
   return value
@@ -26,6 +30,17 @@ function buildArtifactFileName(materialId: string, artifactType: MaterialArtifac
 
 export function isSupportedArtifactType(value: string): value is MaterialArtifactType {
   return MATERIAL_ARTIFACT_TYPES.includes(value as MaterialArtifactType);
+}
+
+export function validateMaterialArtifactFilename(artifactType: MaterialArtifactType, filename: string) {
+  const extension = getArtifactExtension(filename);
+  const allowedExtensions = getMaterialArtifactExtensions(artifactType);
+
+  if (!allowedExtensions.includes(extension)) {
+    throw new Error(
+      `이 artifact type은 ${allowedExtensions.join(", ")} 형식만 업로드할 수 있습니다.`,
+    );
+  }
 }
 
 export function buildArtifactPublicPath(materialId: string, artifactType: MaterialArtifactType, originalName: string) {
