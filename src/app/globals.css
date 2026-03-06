@@ -1,33 +1,57 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --bg-canvas: #f3f4f6;
+  --bg-gradient-a: #f7f8fa;
+  --bg-gradient-b: #eceff3;
+  --bg-surface: #ffffff;
+  --bg-soft: #f7f8fb;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  --text-strong: #16181d;
+  --text-main: #2b2f36;
+  --text-muted: #677180;
+  --text-subtle: #8b94a3;
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+  --line-subtle: #e1e5ec;
+  --line-strong: #cdd4df;
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --brand: #0f4d81;
+  --brand-soft: #e6f0f8;
+  --accent: #ad7b2f;
+
+  --success: #1c8b57;
+  --warning: #b3731f;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  --shadow-soft: 0 10px 30px rgba(15, 24, 40, 0.05);
+  --shadow-card: 0 14px 40px rgba(13, 26, 44, 0.08);
+
+  --sidebar-width: 272px;
+
+  --font-ui: "IBM Plex Sans", "Pretendard", "Noto Sans KR", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", "Iowan Old Style", "Times New Roman", serif;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
+}
+
+html,
+body {
   margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 12% 16%, var(--bg-gradient-a) 0%, transparent 42%),
+    radial-gradient(circle at 86% 4%, var(--bg-gradient-b) 0%, transparent 35%),
+    var(--bg-canvas);
 }
 
 a {
@@ -35,8 +59,80 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.main-shell {
+  min-width: 0;
+  padding: 34px 40px 48px;
+}
+
+.page-container {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.page-hero {
+  margin-bottom: 24px;
+}
+
+.page-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.page-title {
+  margin: 6px 0 10px;
+  font-size: clamp(2rem, 2.4vw, 2.65rem);
+  line-height: 1.06;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .main-shell {
+    padding: 28px 24px 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .main-shell {
+    padding: 18px 16px 28px;
   }
 }

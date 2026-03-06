@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Course {
+  id          String       @id // 구글 클래스룸 ID (예: 841669156744)
+  title       String
+  materials   Material[]
+  assignments Assignment[]
+}
+
+model Material {
+  id          String   @id // Use relative URL as ID
+  courseId    String
+  title       String
+  type        String   // "pdf" | "md" | "zip"
+  localUrl    String   // "/materials/announcements/..."
+  isRead      Boolean  @default(false)
+  notes       Note[]
+  course      Course   @relation(fields: [courseId], references: [id])
+}
+
+model Note {
+  id          String   @id @default(uuid())
+  materialId  String
+  content     String   // 마크다운 형식의 텍스트
+  aiSummary   String?  // AI가 생성한 요약본
+  updatedAt   DateTime @updatedAt
+  material    Material @relation(fields: [materialId], references: [id])
+}
+
+model Assignment {
+  id          String    @id
+  courseId    String
+  title       String
+  dueDate     DateTime?
+  status      String    // "TODO" | "IN_PROGRESS" | "DONE"
+  submittedAt DateTime?
+  course      Course    @relation(fields: [courseId], references: [id])
+}

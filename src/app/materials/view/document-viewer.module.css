@@ -1,0 +1,172 @@
+.layout {
+  height: calc(100vh - 82px);
+  min-height: 640px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  height: 58px;
+  border-bottom: 1px solid var(--line-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #fbfcff;
+}
+
+.titleWrap {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  border: 1px solid var(--line-strong);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+.split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+}
+
+.docPane {
+  min-height: 0;
+  border-right: 1px solid var(--line-subtle);
+  background: #eef1f5;
+  overflow: auto;
+}
+
+.pdf {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.markdown {
+  max-width: 840px;
+  margin: 0 auto;
+  min-height: 100%;
+  background: #fff;
+  padding: 28px 34px;
+  color: var(--text-main);
+  line-height: 1.7;
+}
+
+.markdown :global(h1),
+.markdown :global(h2),
+.markdown :global(h3) {
+  color: var(--text-strong);
+}
+
+.assistant {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fcfdff;
+}
+
+.block {
+  border-bottom: 1px solid var(--line-subtle);
+  padding: 20px;
+}
+
+.block:last-child {
+  border-bottom: 0;
+}
+
+.blockHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary {
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.notes {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.textarea {
+  flex: 1;
+  width: 100%;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  resize: vertical;
+  min-height: 260px;
+  color: var(--text-main);
+  line-height: 1.55;
+  background: #fff;
+}
+
+@media (max-width: 1024px) {
+  .layout {
+    height: auto;
+    min-height: 0;
+  }
+
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .docPane {
+    min-height: 420px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-subtle);
+  }
+}
