@@ -30,5 +30,5 @@ export default async function ViewPage({ searchParams }: PageProps) {
     }
   }
 
-  return <DocumentViewer material={material} mdContent={mdContent} />;
+  return <DocumentViewer key={material.id} material={material} mdContent={mdContent} />;
 }

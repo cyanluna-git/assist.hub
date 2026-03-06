@@ -46,3 +46,29 @@ model Assignment {
   submittedAt DateTime?
   course      Course    @relation(fields: [courseId], references: [id])
 }
+
+model ManualScheduleItem {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime?
+  isPinned    Boolean  @default(false)
+  status      String   @default("TODO")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BulletinItem {
+  id         String   @id @default(uuid())
+  sourceType String   // "SMS" | "GMAIL"
+  externalId String?  @unique
+  title      String
+  content    String
+  sender     String?
+  isPinned   Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  receivedAt DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

@@ -1,3 +1,111 @@
+.topGrid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.panelTitle {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.panelText {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.form {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  padding: 11px 12px;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #0d4472;
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: #fff;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deleteButton {
+  color: #9a3614;
+  border-color: rgba(183, 47, 0, 0.2);
+  background: rgba(183, 47, 0, 0.04);
+}
+
+.helperList {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .header {
   margin-bottom: 18px;
   display: flex;
@@ -32,6 +140,22 @@
   align-items: center;
 }
 
+.content {
+  min-width: 0;
+}
+
+.pinnedContent {
+  position: relative;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
 .iconWrap {
   width: 36px;
   height: 36px;
@@ -49,10 +173,84 @@
   color: var(--text-strong);
 }
 
+.sourceChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.manualChip {
+  color: #0f5494;
+  background: rgba(13, 94, 168, 0.1);
+  border: 1px solid rgba(13, 94, 168, 0.2);
+}
+
+.pinBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #8b6500;
+  background: rgba(173, 127, 0, 0.1);
+  border: 1px solid rgba(173, 127, 0, 0.2);
+}
+
+.classroomChip {
+  color: #745100;
+  background: #fff7ec;
+  border: 1px solid #f2d39f;
+}
+
 .meta {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.description {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
+
+.manualActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pinButtonActive {
+  color: #8b6500;
+  border-color: rgba(173, 127, 0, 0.24);
+  background: rgba(173, 127, 0, 0.08);
+}
+
+.inlineEditor {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line-strong);
+  display: grid;
+  gap: 10px;
+}
+
+.inlineEditorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .badge {
@@ -92,6 +290,11 @@
 }
 
 @media (max-width: 780px) {
+  .topGrid,
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
   .header {
     flex-direction: column;
     align-items: stretch;
@@ -108,5 +311,11 @@
   .badge {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+
+  .inlineEditorActions,
+  .manualActions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

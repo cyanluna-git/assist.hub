@@ -20,6 +20,27 @@
   background: #fbfcff;
 }
 
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionButton {
+  border: 1px solid var(--line-strong);
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .titleWrap {
   min-width: 0;
   display: inline-flex;
@@ -102,6 +123,29 @@
   background: #fcfdff;
 }
 
+.focusLayout .split {
+  grid-template-columns: 1fr;
+}
+
+.focusLayout .assistant {
+  display: none;
+}
+
+.focusLayout .docPane {
+  border-right: 0;
+}
+
+.focusLayout .markdown {
+  max-width: 980px;
+  padding: 44px 58px;
+  font-size: 18px;
+  line-height: 1.85;
+}
+
+.focusLayout .pdf {
+  height: calc(100vh - 60px);
+}
+
 .block {
   border-bottom: 1px solid var(--line-subtle);
   padding: 20px;
@@ -115,11 +159,34 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
   color: var(--text-muted);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.blockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.secondaryAction {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryAction:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .summary {
@@ -134,11 +201,28 @@
   font-size: 13px;
 }
 
+.metaText {
+  margin: 10px 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.errorText {
+  margin: 10px 0 0;
+  color: #b14949;
+  font-size: 12px;
+}
+
 .notes {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.statusText {
+  color: var(--text-subtle);
+  font-size: 12px;
 }
 
 .textarea {
@@ -168,5 +252,20 @@
     min-height: 420px;
     border-right: 0;
     border-bottom: 1px solid var(--line-subtle);
+  }
+
+  .headerActions .actionButton span {
+    display: none;
+  }
+
+  .blockHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .focusLayout .markdown {
+    max-width: 100%;
+    padding: 20px 18px;
+    font-size: 16px;
   }
 }

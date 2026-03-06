@@ -1,0 +1,399 @@
+.topGrid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.panelTitle {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.panelText {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.form {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.input,
+.textarea,
+.select,
+.searchInput {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  padding: 11px 12px;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #0d4472;
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: #fff;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.secondaryButton,
+.itemActionButton,
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.helperList {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.boardSection {
+  display: grid;
+  gap: 14px;
+}
+
+.filterBar {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.viewTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tabButton {
+  background: var(--bg-soft);
+}
+
+.tabButtonActive {
+  border-color: #0d5ea8;
+  background: rgba(13, 94, 168, 0.08);
+  color: #0d4f8d;
+}
+
+.tabCount {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(13, 94, 168, 0.1);
+  font-size: 11px;
+}
+
+.filterControls {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 150px 150px;
+  gap: 10px;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  padding: 0 12px;
+  color: var(--text-subtle);
+}
+
+.searchInput {
+  border: 0;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.searchInput:focus,
+.select:focus,
+.input:focus,
+.textarea:focus {
+  outline: none;
+}
+
+.board {
+  display: grid;
+  gap: 10px;
+}
+
+.item {
+  overflow: hidden;
+}
+
+.itemOpen {
+  border-color: #bac8d8;
+}
+
+.itemButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 18px;
+  cursor: pointer;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.itemHeaderText {
+  min-width: 0;
+  text-align: left;
+}
+
+.itemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.metaGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sourceBadge,
+.pinBadge,
+.archiveBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.sourceBadge {
+  min-width: 68px;
+  border: 1px solid var(--line-strong);
+}
+
+.sourceBadgeSms {
+  background: rgba(13, 94, 168, 0.1);
+  color: #0f5494;
+  border-color: rgba(13, 94, 168, 0.24);
+}
+
+.sourceBadgeGmail {
+  background: rgba(183, 47, 0, 0.09);
+  color: #9a3614;
+  border-color: rgba(183, 47, 0, 0.2);
+}
+
+.pinBadge {
+  background: rgba(173, 127, 0, 0.1);
+  color: #8b6500;
+  border: 1px solid rgba(173, 127, 0, 0.18);
+}
+
+.archiveBadge {
+  background: rgba(89, 102, 122, 0.1);
+  color: #516072;
+  border: 1px solid rgba(89, 102, 122, 0.18);
+}
+
+.date {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.title {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.sender {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.preview {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chevron {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-subtle);
+  transition: transform 0.18s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.body {
+  border-top: 1px solid var(--line-subtle);
+  padding: 16px 18px 18px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.82) 0%, rgba(255, 255, 255, 0.96) 100%);
+  text-align: left;
+}
+
+.bodyInner {
+  max-width: 920px;
+  padding-right: 28px;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.itemActionButton {
+  min-height: 34px;
+  padding: 0 12px;
+  background: #fff;
+}
+
+.contentParagraph {
+  margin: 0 0 10px;
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.72;
+  white-space: pre-wrap;
+  text-align: left;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.contentParagraph:last-child {
+  margin-bottom: 0;
+}
+
+.inlineLink {
+  color: #0d5ea8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.quoted {
+  margin-top: 14px;
+  border-top: 1px dashed var(--line-strong);
+  padding-top: 12px;
+}
+
+.quotedSummary {
+  cursor: pointer;
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quotedBody {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  max-width: 920px;
+}
+
+.quotedParagraph {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.64;
+  white-space: pre-wrap;
+  text-align: left;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.quotedParagraph:last-child {
+  margin-bottom: 0;
+}
+
+.empty {
+  padding: 28px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .topGrid,
+  .filterControls {
+    grid-template-columns: 1fr;
+  }
+
+  .itemButton,
+  .body,
+  .filterBar {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .bodyInner {
+    max-width: none;
+    padding-right: 0;
+  }
+
+  .itemTop,
+  .itemHeader {
+    align-items: flex-start;
+  }
+}

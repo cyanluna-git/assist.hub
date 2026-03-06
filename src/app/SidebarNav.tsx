@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, FileText, GraduationCap, LayoutDashboard } from "lucide-react";
+import { Calendar, FileText, GraduationCap, Inbox, LayoutDashboard } from "lucide-react";
 import styles from "./layout.module.css";
 
-type IconKey = "dashboard" | "materials" | "schedule" | "courses";
+type IconKey = "dashboard" | "bulletin" | "materials" | "schedule" | "courses";
 
 export type NavItem = {
   href: string;
@@ -22,6 +22,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
   const pathname = usePathname();
   const iconMap = {
     dashboard: LayoutDashboard,
+    bulletin: Inbox,
     materials: FileText,
     schedule: Calendar,
     courses: GraduationCap,

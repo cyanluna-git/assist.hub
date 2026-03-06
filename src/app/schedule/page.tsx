@@ -1,19 +1,11 @@
-import prisma from "@/lib/prisma";
-import { Calendar as CalendarIcon, CheckCircle, Clock, Share2 } from "lucide-react";
-import { handleExport } from "./actions";
+import { fetchUnifiedScheduleItems } from "@/lib/schedule";
+import { PlusSquare, Share2 } from "lucide-react";
+import { addManualScheduleAction, handleExport } from "./actions";
+import ScheduleList from "./ScheduleList";
 import styles from "./schedule.module.css";
 
-function getBadgeClass(status: string) {
-  const normalized = status.toLowerCase();
-  if (normalized === "done") return `${styles.badge} ${styles.done}`;
-  if (normalized === "in_progress") return `${styles.badge} ${styles.inprogress}`;
-  return `${styles.badge} ${styles.todo}`;
-}
-
 export default async function SchedulePage() {
-  const assignments = await prisma.assignment.findMany({
-    orderBy: { dueDate: "asc" },
-  });
+  const items = await fetchUnifiedScheduleItems();
 
   return (
     <>
@@ -32,31 +24,68 @@ export default async function SchedulePage() {
         </form>
       </section>
 
-      <section className={styles.list}>
-        {assignments.length === 0 ? (
-          <div className={styles.empty}>
-            <CalendarIcon size={38} />
-            <p>아직 등록된 일정이 없습니다. 대시보드에서 동기화를 먼저 실행하세요.</p>
-          </div>
-        ) : (
-          assignments.map((work) => (
-            <article key={work.id} className={`card ${styles.cardItem}`}>
-              <span className={styles.iconWrap}>
-                {work.status === "DONE" ? <CheckCircle size={18} color="#1c8b57" /> : <Clock size={18} color="#b3731f" />}
-              </span>
+      <section className={styles.topGrid}>
+        <article className={`card ${styles.panel}`}>
+          <h2 className={styles.panelTitle}>
+            <PlusSquare size={18} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
+            학사 일정 직접 추가
+          </h2>
+          <p className={styles.panelText}>수업, 인터뷰, 특강, 학사팀 안내 일정을 직접 등록해 한 곳에서 관리합니다.</p>
 
-              <div>
-                <h3 className={styles.title}>{work.title}</h3>
-                <p className={styles.meta}>
-                  {work.dueDate ? `마감: ${new Date(work.dueDate).toLocaleString()}` : "기한 없음"}
-                </p>
-              </div>
+          <form action={addManualScheduleAction} className={styles.form}>
+            <input name="title" className={styles.input} placeholder="예: 오리엔테이션, 특강, 인터뷰" required />
+            <div className={styles.formRow}>
+              <label className={styles.field}>
+                <span className={styles.label}>시작 일시</span>
+                <input name="startAt" type="datetime-local" className={styles.input} required />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.label}>종료 일시</span>
+                <input name="endAt" type="datetime-local" className={styles.input} />
+              </label>
+            </div>
+            <div className={styles.formRow}>
+              <label className={styles.field}>
+                <span className={styles.label}>상태</span>
+                <select name="status" className={styles.select} defaultValue="TODO">
+                  <option value="TODO">TODO</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS</option>
+                  <option value="DONE">DONE</option>
+                </select>
+              </label>
+            </div>
+            <textarea
+              name="description"
+              className={styles.textarea}
+              placeholder="Zoom 링크, 장소, 준비사항, 메모를 적어둘 수 있습니다."
+            />
+            <button type="submit" className={styles.addBtn}>
+              일정 저장
+            </button>
+          </form>
+        </article>
 
-              <span className={getBadgeClass(work.status)}>{work.status}</span>
-            </article>
-          ))
-        )}
+        <article className={`card ${styles.panel}`}>
+          <h2 className={styles.panelTitle}>운영 방식</h2>
+          <p className={styles.panelText}>
+            동기화된 Classroom 과제와 수동으로 입력한 학사 일정을 같은 타임라인에서 확인합니다.
+          </p>
+
+          <ul className={styles.helperList}>
+            <li>수동 일정은 Google Calendar 내보내기 대상에도 포함됩니다.</li>
+            <li>종료 일시를 비워두면 Calendar에서는 기본 1시간 일정으로 등록됩니다.</li>
+            <li>상태는 `TODO`, `IN_PROGRESS`, `DONE`으로 관리합니다.</li>
+          </ul>
+        </article>
       </section>
+
+      <ScheduleList
+        items={items.map((item) => ({
+          ...item,
+          startAt: item.startAt ? item.startAt.toISOString() : null,
+          endAt: item.endAt ? item.endAt.toISOString() : null,
+        }))}
+      />
     </>
   );
 }

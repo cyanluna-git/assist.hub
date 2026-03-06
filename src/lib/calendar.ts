@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import prisma from "./prisma";
+import { fetchManualScheduleItems } from "./schedule";
 import { google } from "googleapis";
 
 const TOKEN_PATH = path.join(process.cwd(), "..", "ops", "token.json");
@@ -26,6 +27,7 @@ export async function exportAssignmentsToCalendar() {
       dueDate: { not: null }
     }
   });
+  const manualItems = await fetchManualScheduleItems();
 
   let count = 0;
   for (const work of assignments) {
@@ -51,6 +53,31 @@ export async function exportAssignmentsToCalendar() {
       count++;
     } catch (e) {
       console.error(`과제 '${work.title}' 등록 실패:`, e);
+    }
+  }
+
+  for (const item of manualItems) {
+    if (!item.startAt) continue;
+
+    const event = {
+      summary: `[학사 일정] ${item.title}`,
+      description: item.description || "aSSIST MBA Hub에서 직접 등록한 일정입니다.",
+      start: {
+        dateTime: item.startAt.toISOString(),
+      },
+      end: {
+        dateTime: (item.endAt ?? new Date(item.startAt.getTime() + 60 * 60 * 1000)).toISOString(),
+      },
+    };
+
+    try {
+      await calendar.events.insert({
+        calendarId: "primary",
+        requestBody: event,
+      });
+      count++;
+    } catch (e) {
+      console.error(`수동 일정 '${item.title}' 등록 실패:`, e);
     }
   }
 
