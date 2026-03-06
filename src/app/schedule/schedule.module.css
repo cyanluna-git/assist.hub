@@ -106,6 +106,278 @@
   line-height: 1.6;
 }
 
+.viewsSection {
+  display: grid;
+  gap: 14px;
+}
+
+.viewToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.viewTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.viewTab,
+.monthNavButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.viewTabActive {
+  color: #0f5494;
+  background: rgba(13, 94, 168, 0.08);
+  border-color: rgba(13, 94, 168, 0.2);
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.monthLabel {
+  min-width: 112px;
+  text-align: center;
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.monthLayout {
+  display: grid;
+  gap: 14px;
+}
+
+.monthPanel,
+.chronologyPanel {
+  padding: 18px;
+}
+
+.monthPanel {
+  overflow-x: auto;
+}
+
+.weekdayRow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.weekdayLabel {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dayCell {
+  min-height: 148px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-subtle);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.82) 0%, rgba(255, 255, 255, 0.98) 100%);
+}
+
+.dayCellMuted {
+  opacity: 0.55;
+}
+
+.dayCellToday {
+  border-color: rgba(13, 94, 168, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(13, 94, 168, 0.08);
+}
+
+.dayCellHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dayNumber {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dayCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(13, 94, 168, 0.1);
+  color: #0f5494;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dayAgenda {
+  display: grid;
+  gap: 6px;
+}
+
+.dayAgendaItem {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-subtle);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dayAgendaTime {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dayAgendaTitle {
+  color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.dayAgendaMore {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chronologyHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.chronologyKicker {
+  margin: 0 0 4px;
+  color: var(--text-subtle);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chronologyTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.chronologyGroups {
+  display: grid;
+  gap: 18px;
+}
+
+.chronologyGroup {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.chronologyDate {
+  position: sticky;
+  top: 12px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chronologyEntries {
+  display: grid;
+  gap: 10px;
+}
+
+.chronologyEntry {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-subtle);
+  background: var(--bg-surface);
+}
+
+.chronologyMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chronologyTime {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chronologyEntryTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.chronologyEntryText {
+  margin: 8px 0 0;
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.detailLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  margin-top: 10px;
+  color: #0f5494;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.emptyMonth {
+  padding: 28px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+}
+
 .header {
   margin-bottom: 18px;
   display: flex;
@@ -293,6 +565,30 @@
   .topGrid,
   .formRow {
     grid-template-columns: 1fr;
+  }
+
+  .viewToolbar,
+  .chronologyHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .monthNav {
+    justify-content: space-between;
+  }
+
+  .calendarGrid,
+  .weekdayRow {
+    min-width: 720px;
+  }
+
+  .chronologyGroup {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .chronologyDate {
+    position: static;
   }
 
   .header {

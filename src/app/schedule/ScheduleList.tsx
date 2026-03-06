@@ -7,18 +7,8 @@ import {
   toggleManualSchedulePinnedAction,
   updateManualScheduleAction,
 } from "./actions";
+import type { ScheduleItemView } from "./types";
 import styles from "./schedule.module.css";
-
-type ScheduleItemView = {
-  id: string;
-  source: "CLASSROOM" | "MANUAL";
-  title: string;
-  description: string | null;
-  startAt: string | null;
-  endAt: string | null;
-  isPinned: boolean;
-  status: string;
-};
 
 type ScheduleListProps = {
   items: ScheduleItemView[];
@@ -69,7 +59,11 @@ export default function ScheduleList({ items }: ScheduleListProps) {
           const isEditing = work.source === "MANUAL" && editingId === work.id;
 
           return (
-            <article key={`${work.source}-${work.id}`} className={`card ${styles.cardItem}`}>
+            <article
+              id={`schedule-item-${work.source.toLowerCase()}-${work.id}`}
+              key={`${work.source}-${work.id}`}
+              className={`card ${styles.cardItem}`}
+            >
               <span className={styles.iconWrap}>
                 {work.status === "DONE" ? <CheckCircle size={18} color="#1c8b57" /> : <Clock size={18} color="#b3731f" />}
               </span>

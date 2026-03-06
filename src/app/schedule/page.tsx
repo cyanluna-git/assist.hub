@@ -1,7 +1,7 @@
 import { fetchUnifiedScheduleItems } from "@/lib/schedule";
 import { PlusSquare, Share2 } from "lucide-react";
 import { addManualScheduleAction, handleExport } from "./actions";
-import ScheduleList from "./ScheduleList";
+import ScheduleViews from "./ScheduleViews";
 import styles from "./schedule.module.css";
 
 export default async function SchedulePage() {
@@ -79,7 +79,7 @@ export default async function SchedulePage() {
         </article>
       </section>
 
-      <ScheduleList
+      <ScheduleViews
         items={items.map((item) => ({
           ...item,
           startAt: item.startAt ? item.startAt.toISOString() : null,
