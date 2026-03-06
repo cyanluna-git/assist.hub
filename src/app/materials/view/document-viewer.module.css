@@ -184,6 +184,12 @@
   cursor: pointer;
 }
 
+.secondaryAction[href] {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .secondaryAction:disabled {
   opacity: 0.6;
   cursor: default;
@@ -211,6 +217,96 @@
   margin: 10px 0 0;
   color: #b14949;
   font-size: 12px;
+}
+
+.artifactList {
+  display: grid;
+  gap: 10px;
+}
+
+.artifactRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.artifactMeta {
+  min-width: 0;
+}
+
+.artifactActions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.artifactBadges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.artifactTypeBadge,
+.artifactStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.artifactTypeBadge {
+  border: 1px solid rgba(13, 94, 168, 0.18);
+  background: rgba(13, 94, 168, 0.08);
+  color: #0f5494;
+}
+
+.artifactStatusBadge {
+  border: 1px solid var(--line-strong);
+  background: var(--bg-soft);
+  color: var(--text-muted);
+}
+
+.artifactPath {
+  margin: 8px 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.uploadForm {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.fieldLabel {
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.select,
+.fileInput {
+  width: 100%;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text-main);
+  padding: 10px 12px;
+  font-size: 13px;
 }
 
 .notes {
@@ -259,6 +355,11 @@
   }
 
   .blockHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .artifactRow {
     align-items: flex-start;
     flex-direction: column;
   }

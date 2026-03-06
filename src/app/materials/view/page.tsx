@@ -15,7 +15,12 @@ export default async function ViewPage({ searchParams }: PageProps) {
 
   const material = await prisma.material.findUnique({
     where: { id: resourcePath },
-    include: { notes: true },
+    include: {
+      notes: true,
+      artifacts: {
+        orderBy: { updatedAt: "desc" },
+      },
+    },
   });
 
   if (!material) return notFound();
