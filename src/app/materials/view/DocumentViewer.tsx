@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { Material, MaterialArtifact, Note } from "@prisma/client";
-import { Download, Edit3, FileUp, Focus, Maximize2, Minimize2, Sparkles, X } from "lucide-react";
+import { Download, Edit3, FileUp, Focus, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import { generateMaterialSummary, saveMaterialNote, uploadMaterialArtifact } from "./actions";
+import { deleteMaterialArtifact, generateMaterialSummary, saveMaterialNote, uploadMaterialArtifact } from "./actions";
 import styles from "./document-viewer.module.css";
 
 type ViewerMaterial = Material & { notes: Note[]; artifacts: MaterialArtifact[] };
@@ -216,6 +216,32 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                           <Download size={14} />
                           다운로드
                         </a>
+                        <button
+                          type="button"
+                          className={styles.secondaryAction}
+                          disabled={isArtifactPending}
+                          onClick={() => {
+                            const confirmed = window.confirm(`${getArtifactLabel(artifact.artifactType)} 첨부를 삭제할까요?`);
+                            if (!confirmed) {
+                              return;
+                            }
+
+                            setArtifactError(null);
+                            setArtifactNotice(null);
+                            startArtifactTransition(async () => {
+                              try {
+                                await deleteMaterialArtifact(artifact.id);
+                                setArtifacts((current) => current.filter((item) => item.id !== artifact.id));
+                                setArtifactNotice(`${getArtifactLabel(artifact.artifactType)} 첨부를 삭제했습니다.`);
+                              } catch (error) {
+                                setArtifactError(error instanceof Error ? error.message : "artifact 삭제에 실패했습니다.");
+                              }
+                            });
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          삭제
+                        </button>
                       </div>
                     ) : null}
                   </div>

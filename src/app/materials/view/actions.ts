@@ -5,7 +5,9 @@ import path from "node:path";
 import { promisify } from "node:util";
 import prisma from "@/lib/prisma";
 import {
+  deleteMaterialArtifactRecord,
   isSupportedArtifactType,
+  removeArtifactFile,
   saveMaterialArtifactFile,
   upsertMaterialArtifact,
 } from "@/lib/material-artifact-storage";
@@ -88,6 +90,15 @@ export async function uploadMaterialArtifact(formData: FormData) {
     throw new Error("해당 문서를 찾을 수 없습니다.");
   }
 
+  const existingArtifact = await prisma.materialArtifact.findUnique({
+    where: {
+      materialId_artifactType: {
+        materialId,
+        artifactType,
+      },
+    },
+  });
+
   const buffer = Buffer.from(await file.arrayBuffer());
   const saved = await saveMaterialArtifactFile({
     materialId,
@@ -103,10 +114,27 @@ export async function uploadMaterialArtifact(formData: FormData) {
     publicUrl: saved.publicPath,
   });
 
+  if (existingArtifact?.localPath && existingArtifact.localPath !== saved.absolutePath) {
+    await removeArtifactFile(existingArtifact.localPath);
+  }
+
   return {
     artifactId: artifact.id,
     artifactType: artifact.artifactType,
     publicUrl: artifact.publicUrl,
     updatedAt: artifact.updatedAt.toISOString(),
+  };
+}
+
+export async function deleteMaterialArtifact(artifactId: string) {
+  const artifact = await deleteMaterialArtifactRecord(artifactId);
+
+  if (!artifact) {
+    throw new Error("삭제할 artifact를 찾을 수 없습니다.");
+  }
+
+  return {
+    artifactId,
+    artifactType: artifact.artifactType,
   };
 }

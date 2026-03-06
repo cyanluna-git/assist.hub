@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import prisma from "./prisma";
 import { MATERIAL_ARTIFACT_TYPES, type MaterialArtifactType } from "./material-artifacts";
 
@@ -85,4 +85,34 @@ export async function upsertMaterialArtifact(input: {
       generatedAt: now,
     },
   });
+}
+
+export async function removeArtifactFile(localPath: string | null | undefined) {
+  if (!localPath) {
+    return;
+  }
+
+  try {
+    await rm(localPath, { force: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`artifact 파일 정리에 실패했습니다: ${message}`);
+  }
+}
+
+export async function deleteMaterialArtifactRecord(artifactId: string) {
+  const artifact = await prisma.materialArtifact.findUnique({
+    where: { id: artifactId },
+  });
+
+  if (!artifact) {
+    return null;
+  }
+
+  await removeArtifactFile(artifact.localPath);
+  await prisma.materialArtifact.delete({
+    where: { id: artifactId },
+  });
+
+  return artifact;
 }
