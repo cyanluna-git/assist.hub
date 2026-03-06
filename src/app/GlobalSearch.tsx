@@ -181,6 +181,15 @@ export default function GlobalSearch({ items }: GlobalSearchProps) {
                       <span className={styles.paletteText}>
                         <span className={styles.paletteTitle}>{item.title}</span>
                         <span className={styles.paletteSubtitle}>{item.subtitle}</span>
+                        {item.kind === "material" && item.artifactLabels?.length ? (
+                          <span className={styles.paletteBadgeRow}>
+                            {item.artifactLabels.map((label) => (
+                              <span key={`${item.id}-${label}`} className={styles.paletteBadge}>
+                                {label}
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
                       </span>
                       <span className={styles.paletteKind}>{kindLabelMap[item.kind]}</span>
                     </button>

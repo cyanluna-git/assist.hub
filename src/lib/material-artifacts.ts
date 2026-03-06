@@ -119,3 +119,17 @@ export function getMaterialArtifactPreviewKind(type: MaterialArtifactType, publi
 export function canPreviewMaterialArtifact(type: MaterialArtifactType, publicUrl: string | null | undefined) {
   return getMaterialArtifactPreviewKind(type, publicUrl) !== "unsupported";
 }
+
+export function listMaterialArtifactLabels(
+  artifacts: Array<{ artifactType: string }>,
+): string[] {
+  const labels = new Set<string>();
+
+  for (const artifact of artifacts) {
+    if (MATERIAL_ARTIFACT_TYPES.includes(artifact.artifactType as MaterialArtifactType)) {
+      labels.add(getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType));
+    }
+  }
+
+  return Array.from(labels);
+}

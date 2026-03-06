@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { fetchBulletins } from "./bulletin";
+import { listMaterialArtifactLabels } from "./material-artifacts";
 import { fetchUnifiedScheduleItems } from "./schedule";
 
 export type GlobalSearchItem = {
@@ -9,6 +10,7 @@ export type GlobalSearchItem = {
   subtitle: string;
   href: string;
   keywords: string;
+  artifactLabels?: string[];
 };
 
 function formatDateLabel(date: Date | null) {
@@ -28,19 +30,29 @@ export async function fetchGlobalSearchItems() {
   const [materials, bulletins, schedules] = await Promise.all([
     prisma.material.findMany({
       orderBy: { title: "asc" },
+      include: {
+        artifacts: {
+          orderBy: { updatedAt: "desc" },
+        },
+      },
     }),
     fetchBulletins(),
     fetchUnifiedScheduleItems(),
   ]);
 
-  const materialItems: GlobalSearchItem[] = materials.map((item) => ({
-    id: `material-${item.id}`,
-    kind: "material",
-    title: item.title,
-    subtitle: `${item.type.toUpperCase()} · ${item.isRead ? "Read" : "Unread"}`,
-    href: `/materials/view?path=${encodeURIComponent(item.localUrl)}`,
-    keywords: [item.title, item.type, item.localUrl].join(" "),
-  }));
+  const materialItems: GlobalSearchItem[] = materials.map((item) => {
+    const artifactLabels = listMaterialArtifactLabels(item.artifacts);
+
+    return {
+      id: `material-${item.id}`,
+      kind: "material",
+      title: item.title,
+      subtitle: `${item.type.toUpperCase()} · ${item.isRead ? "Read" : "Unread"}${artifactLabels.length ? ` · Artifacts ${artifactLabels.length}` : ""}`,
+      href: `/materials/view?path=${encodeURIComponent(item.localUrl)}`,
+      keywords: [item.title, item.type, item.localUrl, ...artifactLabels].join(" "),
+      artifactLabels,
+    };
+  });
 
   const bulletinItems: GlobalSearchItem[] = bulletins.map((item) => ({
     id: `bulletin-${item.id}`,

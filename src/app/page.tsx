@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { listMaterialArtifactLabels } from "@/lib/material-artifacts";
 import { fetchUnifiedScheduleItems } from "@/lib/schedule";
 import { COURSE_ID, COURSE_TITLE } from "@/lib/sync";
 import { fetchSyncState } from "@/lib/sync-state";
@@ -24,6 +25,7 @@ type ActionMaterial = {
   localUrl: string;
   isRead: boolean;
   noteSummary: string | null;
+  artifactLabels: string[];
 };
 
 export default async function Dashboard() {
@@ -40,10 +42,18 @@ export default async function Dashboard() {
       where: { isRead: false },
       orderBy: { id: "desc" },
       take: 3,
+      include: {
+        artifacts: {
+          orderBy: { updatedAt: "desc" },
+        },
+      },
     }),
     prisma.material.findMany({
       orderBy: { id: "desc" },
       include: {
+        artifacts: {
+          orderBy: { updatedAt: "desc" },
+        },
         notes: {
           orderBy: { updatedAt: "desc" },
           take: 1,
@@ -70,6 +80,7 @@ export default async function Dashboard() {
       localUrl: item.localUrl,
       isRead: item.isRead,
       noteSummary: item.notes[0]?.aiSummary ?? null,
+      artifactLabels: listMaterialArtifactLabels(item.artifacts),
     }));
 
   const totalAssignments = course?.assignments.length ?? 0;
@@ -231,6 +242,15 @@ export default async function Dashboard() {
                     <div className={styles.actionContent}>
                       <p className={styles.materialTitle}>{item.title}</p>
                       <p className={styles.materialMeta}>{item.type.toUpperCase()} · 아직 읽지 않음</p>
+                      {item.artifacts.length ? (
+                        <div className={styles.artifactBadgeRow}>
+                          {listMaterialArtifactLabels(item.artifacts).map((label) => (
+                            <span key={`${item.id}-${label}`} className={styles.artifactBadge}>
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <ArrowRight size={16} className={styles.actionArrow} />
                   </Link>
@@ -269,6 +289,15 @@ export default async function Dashboard() {
                       <p className={styles.materialMeta}>
                         {item.type.toUpperCase()} · {item.isRead ? "읽음" : "읽기 전"} · 요약 필요
                       </p>
+                      {item.artifactLabels.length ? (
+                        <div className={styles.artifactBadgeRow}>
+                          {item.artifactLabels.map((label) => (
+                            <span key={`${item.id}-${label}`} className={styles.artifactBadge}>
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <ArrowRight size={16} className={styles.actionArrow} />
                   </Link>
