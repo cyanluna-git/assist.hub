@@ -2,12 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, List } from "lucide-react";
+import {
+  formatScheduleDayLabel,
+  formatScheduleMonthLabel,
+  formatScheduleTimeLabel,
+} from "./dateFormatting";
 import ScheduleList from "./ScheduleList";
 import type { ScheduleItemView } from "./types";
 import styles from "./schedule.module.css";
 
 type ScheduleViewsProps = {
   items: ScheduleItemView[];
+  initialViewDate: string;
 };
 
 type ViewMode = "list" | "month";
@@ -40,11 +46,11 @@ function toDayKey(date: Date) {
 }
 
 function formatMonthLabel(date: Date) {
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+  return formatScheduleMonthLabel(date);
 }
 
 function formatDayLabel(date: Date) {
-  return `${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdayLabels[(date.getDay() + 6) % 7]}요일`;
+  return formatScheduleDayLabel(date);
 }
 
 function formatTimeLabel(item: ScheduleItemView, date: Date) {
@@ -57,19 +63,13 @@ function formatTimeLabel(item: ScheduleItemView, date: Date) {
     return "계속";
   }
 
-  const startTime = start.toLocaleTimeString("ko-KR", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const startTime = formatScheduleTimeLabel(item.startAt);
 
   if (!end || !isSameDay(end, start)) {
     return startTime;
   }
 
-  const endTime = end.toLocaleTimeString("ko-KR", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const endTime = formatScheduleTimeLabel(item.endAt);
 
   return `${startTime} - ${endTime}`;
 }
@@ -159,13 +159,13 @@ function buildMonthChronology(items: ScheduleItemView[], monthDate: Date) {
     }));
 }
 
-export default function ScheduleViews({ items }: ScheduleViewsProps) {
+export default function ScheduleViews({ items, initialViewDate }: ScheduleViewsProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [monthDate, setMonthDate] = useState(() => new Date());
+  const [monthDate, setMonthDate] = useState(() => new Date(initialViewDate));
 
   const calendarCells = useMemo(() => buildCalendarCells(monthDate), [monthDate]);
   const chronologyGroups = useMemo(() => buildMonthChronology(items, monthDate), [items, monthDate]);
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const today = useMemo(() => startOfDay(new Date(initialViewDate)), [initialViewDate]);
 
   return (
     <section className={styles.viewsSection}>

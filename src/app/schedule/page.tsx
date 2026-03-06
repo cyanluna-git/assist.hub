@@ -6,6 +6,7 @@ import styles from "./schedule.module.css";
 
 export default async function SchedulePage() {
   const items = await fetchUnifiedScheduleItems();
+  const initialViewDate = new Date().toISOString();
 
   return (
     <>
@@ -80,6 +81,7 @@ export default async function SchedulePage() {
       </section>
 
       <ScheduleViews
+        initialViewDate={initialViewDate}
         items={items.map((item) => ({
           ...item,
           startAt: item.startAt ? item.startAt.toISOString() : null,

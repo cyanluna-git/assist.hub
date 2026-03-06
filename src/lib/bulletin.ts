@@ -26,6 +26,10 @@ type RawBulletinItem = {
   updatedAt: string | Date;
 };
 
+type LatestGmailSyncRow = {
+  receivedAt: string | Date | null;
+};
+
 function normalizeBoolean(value: number | boolean | null | undefined) {
   return value === true || value === 1;
 }
@@ -88,13 +92,36 @@ export async function syncAssistGmailBulletins() {
   const auth = buildOAuthClient();
   const gmail = google.gmail({ version: "v1", auth });
 
-  const listResponse = await gmail.users.messages.list({
-    userId: "me",
-    q: "from:assist.ac.kr",
-    maxResults: 25,
-  });
+  const latestSyncedRows = await prisma.$queryRaw<LatestGmailSyncRow[]>`
+    SELECT MAX("receivedAt") AS "receivedAt"
+    FROM "BulletinItem"
+    WHERE "sourceType" = 'GMAIL'
+  `;
 
-  const messages = listResponse.data.messages || [];
+  const latestSyncedAt = latestSyncedRows[0]?.receivedAt ? new Date(latestSyncedRows[0].receivedAt) : null;
+  const overlapSeconds = 120;
+  const afterEpochSeconds = latestSyncedAt
+    ? Math.max(0, Math.floor(latestSyncedAt.getTime() / 1000) - overlapSeconds)
+    : null;
+  const query = afterEpochSeconds
+    ? `from:assist.ac.kr after:${afterEpochSeconds}`
+    : "from:assist.ac.kr";
+
+  const messages: Array<{ id?: string | null }> = [];
+  let nextPageToken: string | undefined;
+
+  do {
+    const listResponse = await gmail.users.messages.list({
+      userId: "me",
+      q: query,
+      maxResults: 100,
+      pageToken: nextPageToken,
+    });
+
+    messages.push(...(listResponse.data.messages || []));
+    nextPageToken = listResponse.data.nextPageToken || undefined;
+  } while (nextPageToken);
+
   let syncedCount = 0;
 
   for (const message of messages) {
