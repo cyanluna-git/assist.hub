@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Material, MaterialArtifact, Note } from "@prisma/client";
-import { Download, Edit3, FileUp, Focus, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
+import { Download, Edit3, FileUp, Focus, Headphones, ImageIcon, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import {
   MATERIAL_ARTIFACT_DEFINITIONS,
+  canPreviewMaterialArtifact,
   getMaterialArtifactAccept,
   getMaterialArtifactDefinition,
   getMaterialArtifactLabel,
+  getMaterialArtifactPreviewKind,
   type MaterialArtifactType,
 } from "@/lib/material-artifacts";
 import { deleteMaterialArtifact, generateMaterialSummary, saveMaterialNote, uploadMaterialArtifact } from "./actions";
@@ -38,11 +41,22 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const [isSummaryPending, startSummaryTransition] = useTransition();
   const [artifacts, setArtifacts] = useState(material.artifacts || []);
   const [artifactType, setArtifactType] = useState<MaterialArtifactType>("NOTEBOOKLM_SUMMARY");
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(material.artifacts?.[0]?.id ?? null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
+  const [artifactPreviewText, setArtifactPreviewText] = useState("");
+  const [artifactPreviewError, setArtifactPreviewError] = useState<string | null>(null);
+  const [isArtifactPreviewLoading, setIsArtifactPreviewLoading] = useState(false);
   const [isArtifactPending, startArtifactTransition] = useTransition();
   const isDirty = noteContent !== persistedNoteContent;
   const selectedArtifactDefinition = getMaterialArtifactDefinition(artifactType);
+  const selectedArtifact = useMemo(
+    () => artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? artifacts[0] ?? null,
+    [artifacts, selectedArtifactId],
+  );
+  const selectedPreviewKind = selectedArtifact
+    ? getMaterialArtifactPreviewKind(selectedArtifact.artifactType as MaterialArtifactType, selectedArtifact.publicUrl)
+    : null;
 
   async function handleFullscreenToggle() {
     const root = rootRef.current;
@@ -104,6 +118,61 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
     };
   }, [material.id, noteContent, persistedNoteContent]);
 
+  useEffect(() => {
+    if (!artifacts.length) {
+      setSelectedArtifactId(null);
+      return;
+    }
+
+    if (!selectedArtifactId || !artifacts.some((artifact) => artifact.id === selectedArtifactId)) {
+      setSelectedArtifactId(artifacts[0].id);
+    }
+  }, [artifacts, selectedArtifactId]);
+
+  useEffect(() => {
+    if (!selectedArtifact?.publicUrl || selectedPreviewKind !== "text") {
+      setArtifactPreviewText("");
+      setArtifactPreviewError(null);
+      setIsArtifactPreviewLoading(false);
+      return;
+    }
+
+    const previewUrl = selectedArtifact.publicUrl;
+    let cancelled = false;
+
+    async function loadPreviewText() {
+      try {
+        setIsArtifactPreviewLoading(true);
+        setArtifactPreviewError(null);
+        const response = await fetch(previewUrl, { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error("텍스트 preview를 불러오지 못했습니다.");
+        }
+
+        const text = await response.text();
+        if (!cancelled) {
+          setArtifactPreviewText(text);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setArtifactPreviewError(error instanceof Error ? error.message : "텍스트 preview를 불러오지 못했습니다.");
+          setArtifactPreviewText("");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsArtifactPreviewLoading(false);
+        }
+      }
+    }
+
+    void loadPreviewText();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedArtifact?.id, selectedArtifact?.publicUrl, selectedPreviewKind]);
+
   function renderSaveState() {
     if (isDirty && saveState !== "saving") return "입력 중...";
     if (saveState === "saving") return "저장 중...";
@@ -112,6 +181,95 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
     }
     if (saveState === "error") return "저장 실패";
     return "자동 저장";
+  }
+
+  function renderArtifactPreview() {
+    if (!selectedArtifact) {
+      return (
+        <div className={styles.previewEmpty}>
+          <p className={styles.empty}>미리볼 artifact를 아직 선택하지 않았습니다.</p>
+        </div>
+      );
+    }
+
+    const label = getMaterialArtifactLabel(selectedArtifact.artifactType as MaterialArtifactType);
+
+    if (!selectedArtifact.publicUrl) {
+      return (
+        <div className={styles.previewFallback}>
+          <p className={styles.previewFallbackTitle}>{label} 파일 경로를 찾지 못했습니다.</p>
+          <p className={styles.previewFallbackText}>이 첨부는 다시 업로드하는 편이 안전합니다.</p>
+        </div>
+      );
+    }
+
+    switch (selectedPreviewKind) {
+      case "image":
+        return (
+          <div className={styles.previewImageWrap}>
+            <Image src={selectedArtifact.publicUrl} alt={label} width={1600} height={1200} className={styles.previewImage} />
+          </div>
+        );
+      case "pdf":
+        return (
+          <iframe
+            src={`${selectedArtifact.publicUrl}#toolbar=0&navpanes=0`}
+            className={styles.previewFrame}
+            title={`${label} preview`}
+          />
+        );
+      case "audio":
+        return (
+          <div className={styles.previewAudio}>
+            <div className={styles.previewAudioHead}>
+              <Headphones size={16} />
+              <span>{label} 재생</span>
+            </div>
+            <audio controls className={styles.audioPlayer}>
+              <source src={selectedArtifact.publicUrl} />
+            </audio>
+          </div>
+        );
+      case "text":
+        if (isArtifactPreviewLoading) {
+          return <p className={styles.previewLoading}>문서를 불러오는 중...</p>;
+        }
+
+        if (artifactPreviewError) {
+          return (
+            <div className={styles.previewFallback}>
+              <p className={styles.previewFallbackTitle}>텍스트 preview를 불러오지 못했습니다.</p>
+              <p className={styles.previewFallbackText}>{artifactPreviewError}</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className={styles.previewMarkdown}>
+            <ReactMarkdown>{artifactPreviewText}</ReactMarkdown>
+          </div>
+        );
+      case "unsupported":
+      default:
+        return (
+          <div className={styles.previewFallback}>
+            <p className={styles.previewFallbackTitle}>브라우저 preview를 지원하지 않는 형식입니다.</p>
+            <p className={styles.previewFallbackText}>
+              이 첨부는 페이지 안에서 바로 보여줄 수 없어 `열기` 또는 `다운로드`로 접근해야 합니다.
+            </p>
+            <div className={styles.previewFallbackActions}>
+              <a href={selectedArtifact.publicUrl} target="_blank" rel="noreferrer" className={styles.secondaryAction}>
+                <Download size={14} />
+                열기
+              </a>
+              <a href={selectedArtifact.publicUrl} download className={styles.secondaryAction}>
+                <Download size={14} />
+                다운로드
+              </a>
+            </div>
+          </div>
+        );
+    }
   }
 
   return (
@@ -171,9 +329,35 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
             </div>
 
             <div className={styles.artifactList}>
+              {selectedArtifact ? (
+                <div className={styles.previewPanel}>
+                  <div className={styles.previewHeader}>
+                    <div className={styles.previewTitleWrap}>
+                      {selectedPreviewKind === "image" ? <ImageIcon size={15} /> : <FileUp size={15} />}
+                      <span className={styles.previewTitle}>
+                        {getMaterialArtifactLabel(selectedArtifact.artifactType as MaterialArtifactType)}
+                      </span>
+                    </div>
+                    <span className={styles.previewStatus}>
+                      {canPreviewMaterialArtifact(
+                        selectedArtifact.artifactType as MaterialArtifactType,
+                        selectedArtifact.publicUrl,
+                      )
+                        ? "페이지 안에서 미리보기"
+                        : "파일로 열기"}
+                    </span>
+                  </div>
+                  <div className={styles.previewStage}>{renderArtifactPreview()}</div>
+                </div>
+              ) : null}
               {artifacts.length ? (
                 artifacts.map((artifact) => (
-                  <div key={artifact.id} className={styles.artifactRow}>
+                  <button
+                    key={artifact.id}
+                    type="button"
+                    className={`${styles.artifactRow} ${selectedArtifact?.id === artifact.id ? styles.artifactRowActive : ""}`}
+                    onClick={() => setSelectedArtifactId(artifact.id)}
+                  >
                     <div className={styles.artifactMeta}>
                       <div className={styles.artifactBadges}>
                         <span className={styles.artifactTypeBadge}>
@@ -186,7 +370,10 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                       </p>
                     </div>
                     {artifact.publicUrl ? (
-                      <div className={styles.artifactActions}>
+                      <div
+                        className={styles.artifactActions}
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         <a
                           href={artifact.publicUrl}
                           target="_blank"
@@ -217,7 +404,11 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                             startArtifactTransition(async () => {
                               try {
                                 await deleteMaterialArtifact(artifact.id);
+                                const nextArtifact = artifacts.find((item) => item.id !== artifact.id) ?? null;
                                 setArtifacts((current) => current.filter((item) => item.id !== artifact.id));
+                                if (selectedArtifactId === artifact.id) {
+                                  setSelectedArtifactId(nextArtifact?.id ?? null);
+                                }
                                 setArtifactNotice(
                                   `${getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)} 첨부를 삭제했습니다.`,
                                 );
@@ -232,7 +423,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                         </button>
                       </div>
                     ) : null}
-                  </div>
+                  </button>
                 ))
               ) : (
                 <p className={styles.empty}>아직 첨부된 artifact가 없습니다. 요약, 슬라이드, 인포그래픽 파일을 직접 올릴 수 있습니다.</p>
@@ -274,6 +465,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                         ...next,
                       ];
                     });
+                    setSelectedArtifactId(result.artifactId);
                     setArtifactNotice(
                       `${getMaterialArtifactLabel(result.artifactType as MaterialArtifactType)} 첨부가 저장되었습니다.`,
                     );

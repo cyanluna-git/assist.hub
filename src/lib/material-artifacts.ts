@@ -19,6 +19,8 @@ export type MaterialArtifactDefinition = {
   extensions: readonly string[];
 };
 
+export type MaterialArtifactPreviewKind = "image" | "pdf" | "text" | "audio" | "unsupported";
+
 export const MATERIAL_ARTIFACT_DEFINITIONS: readonly MaterialArtifactDefinition[] = [
   {
     type: "NOTEBOOKLM_SUMMARY",
@@ -75,4 +77,45 @@ export function getMaterialArtifactAccept(type: MaterialArtifactType) {
 
 export function getMaterialArtifactExtensions(type: MaterialArtifactType) {
   return getMaterialArtifactDefinition(type)?.extensions ?? [];
+}
+
+function getArtifactExtensionFromUrl(url: string | null | undefined) {
+  if (!url) {
+    return "";
+  }
+
+  const cleanUrl = url.split("?")[0] ?? url;
+  const lastDot = cleanUrl.lastIndexOf(".");
+
+  if (lastDot === -1) {
+    return "";
+  }
+
+  return cleanUrl.slice(lastDot).toLowerCase();
+}
+
+export function getMaterialArtifactPreviewKind(type: MaterialArtifactType, publicUrl: string | null | undefined) {
+  const extension = getArtifactExtensionFromUrl(publicUrl);
+
+  if (type === "AUDIO_OVERVIEW") {
+    return "audio" satisfies MaterialArtifactPreviewKind;
+  }
+
+  if ([".png", ".jpg", ".jpeg", ".webp", ".svg"].includes(extension)) {
+    return "image" satisfies MaterialArtifactPreviewKind;
+  }
+
+  if ([".md", ".txt"].includes(extension)) {
+    return "text" satisfies MaterialArtifactPreviewKind;
+  }
+
+  if (extension === ".pdf") {
+    return "pdf";
+  }
+
+  return "unsupported" satisfies MaterialArtifactPreviewKind;
+}
+
+export function canPreviewMaterialArtifact(type: MaterialArtifactType, publicUrl: string | null | undefined) {
+  return getMaterialArtifactPreviewKind(type, publicUrl) !== "unsupported";
 }
