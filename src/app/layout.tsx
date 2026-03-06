@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import {
-  Search,
   Settings,
 } from "lucide-react";
+import { fetchGlobalSearchItems } from "@/lib/search";
+import GlobalSearch from "./GlobalSearch";
 import SidebarNav from "./SidebarNav";
 import type { NavItem } from "./SidebarNav";
 import styles from "./layout.module.css";
@@ -21,11 +22,13 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/courses", label: "Courses", icon: "courses", disabled: true },
 ];
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const searchItems = await fetchGlobalSearchItems();
+
   return (
     <html lang="ko">
       <body>
@@ -42,13 +45,7 @@ export default function RootLayout({
                 <span className={styles.userName}>박근윤</span>
               </div>
               <p className={styles.userHint}>이번 주 학습 흐름을 점검하세요.</p>
-              <button type="button" className={styles.searchTrigger} aria-label="Open command palette">
-                <span className={styles.searchLeft}>
-                  <Search size={14} />
-                  <span>Quick Search</span>
-                </span>
-                <span className={styles.kbd}>⌘K</span>
-              </button>
+              <GlobalSearch items={searchItems} />
             </section>
 
             <SidebarNav items={NAV_ITEMS} />

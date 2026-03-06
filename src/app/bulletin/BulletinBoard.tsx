@@ -261,6 +261,7 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
 
             return (
               <article
+                id={`bulletin-item-${item.id}`}
                 key={item.id}
                 className={`card ${styles.item} ${isOpen ? styles.itemOpen : ""} ${!item.isRead ? styles.itemUnread : ""}`}
               >
