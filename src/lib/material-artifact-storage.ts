@@ -1,0 +1,88 @@
+import path from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import prisma from "./prisma";
+import { MATERIAL_ARTIFACT_TYPES, type MaterialArtifactType } from "./material-artifacts";
+
+function sanitizeSegment(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+}
+
+function getArtifactExtension(filename: string) {
+  const extension = path.extname(filename).trim().toLowerCase();
+  return extension || ".bin";
+}
+
+function buildArtifactFileName(materialId: string, artifactType: MaterialArtifactType, originalName: string) {
+  const extension = getArtifactExtension(originalName);
+  const materialSlug = sanitizeSegment(path.basename(materialId, path.extname(materialId)) || "material");
+  const artifactSlug = sanitizeSegment(artifactType);
+  return `${materialSlug}-${artifactSlug}${extension}`;
+}
+
+export function isSupportedArtifactType(value: string): value is MaterialArtifactType {
+  return MATERIAL_ARTIFACT_TYPES.includes(value as MaterialArtifactType);
+}
+
+export function buildArtifactPublicPath(materialId: string, artifactType: MaterialArtifactType, originalName: string) {
+  const fileName = buildArtifactFileName(materialId, artifactType, originalName);
+  const materialSlug = sanitizeSegment(path.basename(materialId, path.extname(materialId)) || "material");
+  return `/material-artifacts/${materialSlug}/${artifactType.toLowerCase()}/${fileName}`;
+}
+
+export async function saveMaterialArtifactFile(input: {
+  materialId: string;
+  artifactType: MaterialArtifactType;
+  originalName: string;
+  buffer: Buffer;
+}) {
+  const publicPath = buildArtifactPublicPath(input.materialId, input.artifactType, input.originalName);
+  const absolutePath = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
+
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, input.buffer);
+
+  return {
+    absolutePath,
+    publicPath,
+  };
+}
+
+export async function upsertMaterialArtifact(input: {
+  materialId: string;
+  artifactType: MaterialArtifactType;
+  localPath: string;
+  publicUrl: string;
+}) {
+  const now = new Date();
+
+  return prisma.materialArtifact.upsert({
+    where: {
+      materialId_artifactType: {
+        materialId: input.materialId,
+        artifactType: input.artifactType,
+      },
+    },
+    update: {
+      status: "SUCCESS",
+      localPath: input.localPath,
+      publicUrl: input.publicUrl,
+      errorMessage: null,
+      generatedAt: now,
+      updatedAt: now,
+    },
+    create: {
+      materialId: input.materialId,
+      artifactType: input.artifactType,
+      status: "SUCCESS",
+      localPath: input.localPath,
+      publicUrl: input.publicUrl,
+      errorMessage: null,
+      generatedAt: now,
+    },
+  });
+}

@@ -4,6 +4,11 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import prisma from "@/lib/prisma";
+import {
+  isSupportedArtifactType,
+  saveMaterialArtifactFile,
+  upsertMaterialArtifact,
+} from "@/lib/material-artifact-storage";
 
 const execFileAsync = promisify(execFile);
 
@@ -51,4 +56,57 @@ export async function generateMaterialSummary(materialId: string) {
   };
 
   return parsed;
+}
+
+export async function uploadMaterialArtifact(formData: FormData) {
+  const materialId = String(formData.get("materialId") || "").trim();
+  const artifactType = String(formData.get("artifactType") || "").trim();
+  const file = formData.get("file");
+
+  if (!materialId) {
+    throw new Error("materialId가 필요합니다.");
+  }
+
+  if (!isSupportedArtifactType(artifactType)) {
+    throw new Error("지원하지 않는 artifact type입니다.");
+  }
+
+  if (!(file instanceof File)) {
+    throw new Error("업로드할 파일이 필요합니다.");
+  }
+
+  if (file.size === 0) {
+    throw new Error("빈 파일은 업로드할 수 없습니다.");
+  }
+
+  const material = await prisma.material.findUnique({
+    where: { id: materialId },
+    select: { id: true },
+  });
+
+  if (!material) {
+    throw new Error("해당 문서를 찾을 수 없습니다.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const saved = await saveMaterialArtifactFile({
+    materialId,
+    artifactType,
+    originalName: file.name || "artifact.bin",
+    buffer,
+  });
+
+  const artifact = await upsertMaterialArtifact({
+    materialId,
+    artifactType,
+    localPath: saved.absolutePath,
+    publicUrl: saved.publicPath,
+  });
+
+  return {
+    artifactId: artifact.id,
+    artifactType: artifact.artifactType,
+    publicUrl: artifact.publicUrl,
+    updatedAt: artifact.updatedAt.toISOString(),
+  };
 }
