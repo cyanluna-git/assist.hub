@@ -1,29 +1,84 @@
 import prisma from "@/lib/prisma";
+import { fetchUnifiedScheduleItems } from "@/lib/schedule";
 import { COURSE_ID, COURSE_TITLE } from "@/lib/sync";
 import { fetchSyncState } from "@/lib/sync-state";
-import { Clock3, ExternalLink, FileText, RefreshCw } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpenCheck,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  ExternalLink,
+  FileText,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { syncClassroomDataAction } from "./dashboard-actions";
 import styles from "./dashboard.module.css";
 
+type ActionMaterial = {
+  id: string;
+  title: string;
+  type: string;
+  localUrl: string;
+  isRead: boolean;
+  noteSummary: string | null;
+};
+
 export default async function Dashboard() {
-  const [course, classroomSync] = await Promise.all([
+  const [course, classroomSync, scheduleItems, unreadMaterials, materialsForSummary] = await Promise.all([
     prisma.course.findUnique({
       where: { id: COURSE_ID },
       include: {
-        materials: {
-          take: 5,
-          orderBy: { id: "desc" },
-        },
         assignments: true,
       },
     }),
     fetchSyncState("CLASSROOM"),
+    fetchUnifiedScheduleItems(),
+    prisma.material.findMany({
+      where: { isRead: false },
+      orderBy: { id: "desc" },
+      take: 3,
+    }),
+    prisma.material.findMany({
+      orderBy: { id: "desc" },
+      include: {
+        notes: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+        },
+      },
+    }),
   ]);
+
+  const now = new Date();
+  const upcomingItems = scheduleItems
+    .filter((item) => item.startAt && item.status !== "DONE" && item.startAt.getTime() >= now.getTime())
+    .slice(0, 3);
+
+  const materialsMissingSummary: ActionMaterial[] = materialsForSummary
+    .filter((item) => {
+      const latestNote = item.notes[0];
+      return !latestNote || !latestNote.aiSummary?.trim();
+    })
+    .slice(0, 3)
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      localUrl: item.localUrl,
+      isRead: item.isRead,
+      noteSummary: item.notes[0]?.aiSummary ?? null,
+    }));
 
   const totalAssignments = course?.assignments.length ?? 0;
   const dueAssignments = course?.assignments.filter((item) => item.dueDate).length ?? 0;
-  const unreadMaterials = course?.materials.filter((item) => !item.isRead).length ?? 0;
+  const unreadCount = await prisma.material.count({ where: { isRead: false } });
+  const summaryGapCount = materialsForSummary.filter((item) => {
+    const latestNote = item.notes[0];
+    return !latestNote || !latestNote.aiSummary?.trim();
+  }).length;
 
   const syncToneClass =
     classroomSync.status === "SUCCESS"
@@ -39,7 +94,7 @@ export default async function Dashboard() {
       <header className="page-hero">
         <p className="page-kicker">Learning Console</p>
         <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">안녕하세요, 박근윤님. 오늘 학습 흐름과 우선순위를 확인하세요.</p>
+        <p className="page-subtitle">안녕하세요, 박근윤님. 지금 처리할 일정과 자료를 바로 실행하세요.</p>
       </header>
 
       <section className={styles.hero}>
@@ -56,8 +111,8 @@ export default async function Dashboard() {
             >
               Google Classroom <ExternalLink size={14} />
             </a>
-            <Link href="/materials" className={styles.secondaryBtn}>
-              자료 라이브러리 열기
+            <Link href="/schedule" className={styles.secondaryBtn}>
+              이번 주 일정 열기
             </Link>
           </div>
           <div className={styles.heroMeta}>
@@ -72,54 +127,168 @@ export default async function Dashboard() {
 
         <div className={styles.kpiGrid}>
           <article className={styles.kpiCard}>
-            <p className={styles.kpiLabel}>Assignments</p>
-            <p className={styles.kpiValue}>{totalAssignments}</p>
-            <p className={styles.kpiHint}>전체 등록 과제</p>
-          </article>
-          <article className={styles.kpiCard}>
-            <p className={styles.kpiLabel}>Due Dates</p>
-            <p className={styles.kpiValue}>{dueAssignments}</p>
-            <p className={styles.kpiHint}>마감일 지정 항목</p>
+            <p className={styles.kpiLabel}>Next Up</p>
+            <p className={styles.kpiValue}>{upcomingItems.length}</p>
+            <p className={styles.kpiHint}>가까운 마감/학사 일정</p>
           </article>
           <article className={styles.kpiCard}>
             <p className={styles.kpiLabel}>Unread</p>
-            <p className={styles.kpiValue}>{unreadMaterials}</p>
-            <p className={styles.kpiHint}>최근 자료 기준</p>
+            <p className={styles.kpiValue}>{unreadCount}</p>
+            <p className={styles.kpiHint}>아직 열람하지 않은 자료</p>
+          </article>
+          <article className={styles.kpiCard}>
+            <p className={styles.kpiLabel}>Summary Gap</p>
+            <p className={styles.kpiValue}>{summaryGapCount}</p>
+            <p className={styles.kpiHint}>요약이 없는 문서</p>
           </article>
         </div>
       </section>
 
-      <section className={styles.contentGrid}>
+      <section className={styles.priorityStrip}>
+        <article className={`card ${styles.priorityCard}`}>
+          <div className={styles.priorityHeader}>
+            <div>
+              <p className={styles.priorityKicker}>Today</p>
+              <h3 className={styles.priorityTitle}>지금 바로 할 일</h3>
+            </div>
+            <span className={styles.priorityBadge}>{upcomingItems.length > 0 ? "Action Ready" : "Clear"}</span>
+          </div>
+          <div className={styles.priorityActions}>
+            <Link href="/schedule" className={styles.priorityAction}>
+              <CalendarClock size={16} />
+              일정부터 처리하기
+            </Link>
+            <Link href="/materials" className={styles.priorityAction}>
+              <BookOpenCheck size={16} />
+              읽지 않은 자료 보기
+            </Link>
+            <Link href="/bulletin" className={styles.priorityAction}>
+              <Sparkles size={16} />
+              공지 보드 확인하기
+            </Link>
+          </div>
+        </article>
+      </section>
+
+      <section className={styles.actionGrid}>
         <article className={`card ${styles.section}`}>
           <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Recent Materials</h3>
-            <Link href="/materials" className={styles.actionLink}>
-              View all
+            <div>
+              <p className={styles.sectionEyebrow}>Next Due</p>
+              <h3 className={styles.sectionTitle}>다음 마감 3개</h3>
+            </div>
+            <Link href="/schedule" className={styles.actionLink}>
+              전체 일정 보기
             </Link>
           </div>
 
-          <ul className={styles.materialList}>
-            {course?.materials.length ? (
-              course.materials.map((item) => (
-                <li key={item.id}>
-                  <Link href={`/materials/view?path=${encodeURIComponent(item.localUrl)}`} className={styles.materialRow}>
-                    <FileText size={16} className={styles.materialIcon} />
-                    <div className={styles.materialText}>
+          <ul className={styles.actionList}>
+            {upcomingItems.length ? (
+              upcomingItems.map((item) => (
+                <li key={`${item.source}-${item.id}`}>
+                  <Link
+                    href={`/schedule#schedule-item-${item.source.toLowerCase()}-${item.id}`}
+                    className={styles.actionRow}
+                  >
+                    <span className={styles.actionIconWrap}>
+                      <CalendarClock size={16} className={styles.materialIcon} />
+                    </span>
+                    <div className={styles.actionContent}>
                       <p className={styles.materialTitle}>{item.title}</p>
-                      <p className={styles.materialMeta}>{item.type.toUpperCase()} • {item.isRead ? "Read" : "Unread"}</p>
+                      <p className={styles.materialMeta}>
+                        {item.source === "MANUAL" ? "학사 일정" : "Classroom"} · {formatDateTime(item.startAt!)}
+                      </p>
                     </div>
+                    <ArrowRight size={16} className={styles.actionArrow} />
                   </Link>
                 </li>
               ))
             ) : (
-              <li className={styles.materialRow}>동기화된 자료가 없습니다. 아래 Sync Center에서 직접 동기화를 실행하세요.</li>
+              <li className={styles.emptyCard}>다가오는 일정이 없습니다.</li>
             )}
           </ul>
         </article>
 
         <article className={`card ${styles.section}`}>
           <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Sync Center</h3>
+            <div>
+              <p className={styles.sectionEyebrow}>Reading Queue</p>
+              <h3 className={styles.sectionTitle}>읽지 않은 자료</h3>
+            </div>
+            <Link href="/materials" className={styles.actionLink}>
+              자료 라이브러리
+            </Link>
+          </div>
+
+          <ul className={styles.actionList}>
+            {unreadMaterials.length ? (
+              unreadMaterials.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/materials/view?path=${encodeURIComponent(item.localUrl)}`} className={styles.actionRow}>
+                    <span className={styles.actionIconWrap}>
+                      <FileText size={16} className={styles.materialIcon} />
+                    </span>
+                    <div className={styles.actionContent}>
+                      <p className={styles.materialTitle}>{item.title}</p>
+                      <p className={styles.materialMeta}>{item.type.toUpperCase()} · 아직 읽지 않음</p>
+                    </div>
+                    <ArrowRight size={16} className={styles.actionArrow} />
+                  </Link>
+                </li>
+              ))
+            ) : (
+              <li className={styles.emptyCard}>
+                <CheckCircle2 size={16} />
+                모두 읽은 상태입니다.
+              </li>
+            )}
+          </ul>
+        </article>
+
+        <article className={`card ${styles.section}`}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <p className={styles.sectionEyebrow}>Summary Queue</p>
+              <h3 className={styles.sectionTitle}>요약 없는 문서</h3>
+            </div>
+            <Link href="/materials" className={styles.actionLink}>
+              문서 전체 보기
+            </Link>
+          </div>
+
+          <ul className={styles.actionList}>
+            {materialsMissingSummary.length ? (
+              materialsMissingSummary.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/materials/view?path=${encodeURIComponent(item.localUrl)}`} className={styles.actionRow}>
+                    <span className={styles.actionIconWrap}>
+                      <Sparkles size={16} className={styles.materialIcon} />
+                    </span>
+                    <div className={styles.actionContent}>
+                      <p className={styles.materialTitle}>{item.title}</p>
+                      <p className={styles.materialMeta}>
+                        {item.type.toUpperCase()} · {item.isRead ? "읽음" : "읽기 전"} · 요약 필요
+                      </p>
+                    </div>
+                    <ArrowRight size={16} className={styles.actionArrow} />
+                  </Link>
+                </li>
+              ))
+            ) : (
+              <li className={styles.emptyCard}>
+                <CheckCircle2 size={16} />
+                요약 누락 문서가 없습니다.
+              </li>
+            )}
+          </ul>
+        </article>
+
+        <article className={`card ${styles.section}`}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <p className={styles.sectionEyebrow}>Operations</p>
+              <h3 className={styles.sectionTitle}>Sync Center</h3>
+            </div>
           </div>
           <div className={styles.syncCard}>
             <div className={styles.syncHeader}>
@@ -130,6 +299,16 @@ export default async function Dashboard() {
               <span className={`${styles.statusPill} ${syncToneClass}`}>{getSyncStatusLabel(classroomSync.status)}</span>
             </div>
             {classroomSync.lastMessage ? <p className={styles.syncMessage}>{classroomSync.lastMessage}</p> : null}
+            <div className={styles.syncStats}>
+              <div className={styles.syncStat}>
+                <span className={styles.syncStatLabel}>Assignments</span>
+                <span className={styles.syncStatValue}>{totalAssignments}</span>
+              </div>
+              <div className={styles.syncStat}>
+                <span className={styles.syncStatLabel}>Due Dates</span>
+                <span className={styles.syncStatValue}>{dueAssignments}</span>
+              </div>
+            </div>
             <form action={syncClassroomDataAction}>
               <button type="submit" className={styles.secondaryBtn}>
                 <RefreshCw size={14} />
@@ -138,22 +317,24 @@ export default async function Dashboard() {
             </form>
           </div>
         </article>
+      </section>
 
+      <section className={styles.timelineGrid}>
         <article className={`card ${styles.timeline}`}>
           <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Timeline</h3>
+            <h3 className={styles.sectionTitle}>Workflow Notes</h3>
           </div>
           <div className={styles.timelineBody}>
             <div className={styles.timelineItem}>
-              <p className={styles.timelineItemTitle}>자료 읽기 파이프라인</p>
-              <p className={styles.timelineItemText}>최근 업로드된 문서부터 열람하고 요약을 저장해 개인 지식 베이스를 확장합니다.</p>
+              <p className={styles.timelineItemTitle}>읽기 우선순위</p>
+              <p className={styles.timelineItemText}>읽지 않은 문서부터 열고, 필요한 문서는 요약을 생성해 개인 지식 베이스로 저장합니다.</p>
             </div>
             <div className={styles.timelineItem}>
               <p className={styles.timelineItemTitle}>
                 <Clock3 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
                 운영 방식
               </p>
-              <p className={styles.timelineItemText}>외부 API 동기화는 렌더 중 자동 실행하지 않습니다. 필요할 때 직접 실행하고, 실패 원인은 상태 카드에서 바로 확인합니다.</p>
+              <p className={styles.timelineItemText}>대시보드는 전체 인덱스가 아니라 실행 보드입니다. 자세한 목록은 각 전용 화면에서 처리합니다.</p>
             </div>
           </div>
         </article>

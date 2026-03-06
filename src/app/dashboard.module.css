@@ -92,6 +92,83 @@
   gap: 16px;
 }
 
+.priorityStrip {
+  margin-bottom: 18px;
+}
+
+.priorityCard {
+  padding: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(13, 94, 168, 0.08), transparent 34%),
+    linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+  border: 1px solid rgba(13, 94, 168, 0.14);
+}
+
+.priorityHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.priorityKicker {
+  margin: 0 0 4px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.priorityTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 22px;
+  font-family: var(--font-display);
+}
+
+.priorityBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(13, 94, 168, 0.18);
+  border-radius: 999px;
+  background: rgba(13, 94, 168, 0.08);
+  color: #0f5494;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.priorityActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.priorityAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .section {
   padding: 20px;
 }
@@ -114,6 +191,15 @@
   color: var(--brand);
   font-size: 13px;
   font-weight: 600;
+}
+
+.sectionEyebrow {
+  margin: 0 0 4px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .courseTitle {
@@ -168,6 +254,14 @@
   gap: 8px;
 }
 
+.actionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
 .materialRow {
   display: flex;
   align-items: center;
@@ -176,6 +270,35 @@
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
+}
+
+.actionRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+
+.actionIconWrap {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(13, 94, 168, 0.08);
+}
+
+.actionContent {
+  min-width: 0;
+}
+
+.actionArrow {
+  color: var(--text-subtle);
 }
 
 .materialIcon {
@@ -204,8 +327,11 @@
 }
 
 .timeline {
-  grid-column: 1 / -1;
   padding: 20px;
+}
+
+.timelineGrid {
+  margin-top: 16px;
 }
 
 .timelineBody {
@@ -234,6 +360,19 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
+}
+
+.emptyCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 74px;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: rgba(248, 250, 252, 0.72);
+  font-size: 13px;
 }
 
 .syncCard {
@@ -282,12 +421,43 @@
   white-space: nowrap;
 }
 
+.syncStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.syncStat {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.syncStatLabel {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.syncStatValue {
+  color: var(--text-strong);
+  font-size: 20px;
+  font-family: var(--font-display);
+}
+
 @media (max-width: 1100px) {
   .hero {
     grid-template-columns: 1fr;
   }
 
   .contentGrid,
+  .actionGrid,
+  .priorityActions,
   .timelineBody {
     grid-template-columns: 1fr;
   }
