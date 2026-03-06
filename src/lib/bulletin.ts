@@ -19,6 +19,7 @@ type RawBulletinItem = {
   title: string;
   content: string;
   sender: string | null;
+  isRead: number | boolean | null;
   isPinned: number | boolean | null;
   isArchived: number | boolean | null;
   receivedAt: string | Date;
@@ -83,6 +84,7 @@ export async function createManualBulletin(title: string, content: string) {
       title,
       content,
       sender: "Manual SMS",
+      isRead: false,
       receivedAt: new Date(),
     },
   });
@@ -155,6 +157,7 @@ export async function syncAssistGmailBulletins() {
         title: subject,
         content,
         sender: from,
+        isRead: false,
         receivedAt,
       },
     });
@@ -174,6 +177,7 @@ export async function fetchBulletins() {
       "title",
       "content",
       "sender",
+      COALESCE("isRead", 0) AS "isRead",
       COALESCE("isPinned", 0) AS "isPinned",
       COALESCE("isArchived", 0) AS "isArchived",
       "receivedAt",
@@ -185,6 +189,7 @@ export async function fetchBulletins() {
 
   return rows.map((row) => ({
     ...row,
+    isRead: normalizeBoolean(row.isRead),
     isPinned: normalizeBoolean(row.isPinned),
     isArchived: normalizeBoolean(row.isArchived),
     receivedAt: new Date(row.receivedAt),
@@ -197,6 +202,14 @@ export async function setBulletinPinned(id: string, isPinned: boolean) {
   await prisma.$executeRaw`
     UPDATE "BulletinItem"
     SET "isPinned" = ${isPinned ? 1 : 0}
+    WHERE "id" = ${id}
+  `;
+}
+
+export async function setBulletinRead(id: string, isRead: boolean) {
+  await prisma.$executeRaw`
+    UPDATE "BulletinItem"
+    SET "isRead" = ${isRead ? 1 : 0}
     WHERE "id" = ${id}
   `;
 }

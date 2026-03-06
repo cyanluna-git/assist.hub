@@ -161,6 +161,11 @@
   overflow: hidden;
 }
 
+.itemUnread {
+  border-color: rgba(13, 94, 168, 0.22);
+  box-shadow: 0 0 0 1px rgba(13, 94, 168, 0.08);
+}
+
 .itemOpen {
   border-color: #bac8d8;
 }
@@ -202,6 +207,7 @@
 }
 
 .sourceBadge,
+.unreadBadge,
 .pinBadge,
 .archiveBadge {
   display: inline-flex;
@@ -217,6 +223,12 @@
 .sourceBadge {
   min-width: 68px;
   border: 1px solid var(--line-strong);
+}
+
+.unreadBadge {
+  background: rgba(13, 94, 168, 0.1);
+  color: #0f5494;
+  border: 1px solid rgba(13, 94, 168, 0.18);
 }
 
 .sourceBadgeSms {

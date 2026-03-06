@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Archive, ChevronDown, Inbox, Pin, Search } from "lucide-react";
-import { toggleBulletinArchiveAction, toggleBulletinPinAction } from "./actions";
+import { Archive, BookOpenCheck, ChevronDown, Inbox, MailOpen, Pin, Search } from "lucide-react";
+import { toggleBulletinArchiveAction, toggleBulletinPinAction, toggleBulletinReadAction } from "./actions";
 import styles from "./bulletin.module.css";
 
 type BulletinItemView = {
@@ -12,6 +12,7 @@ type BulletinItemView = {
   content: string;
   sender: string | null;
   receivedAt: string;
+  isRead: boolean;
   isPinned: boolean;
   isArchived: boolean;
 };
@@ -22,7 +23,7 @@ type BulletinBoardProps = {
 
 type SourceFilter = "ALL" | "SMS" | "GMAIL";
 type DateFilter = "ALL" | "7D" | "30D" | "90D";
-type ViewMode = "ACTIVE" | "ARCHIVED" | "ALL";
+type ViewMode = "ACTIVE" | "UNREAD" | "ARCHIVED" | "ALL";
 
 function normalizeParagraphs(input: string) {
   return input
@@ -112,12 +113,21 @@ function matchesDateFilter(receivedAt: string, filter: DateFilter) {
 
 function matchesViewMode(item: BulletinItemView, mode: ViewMode) {
   if (mode === "ACTIVE") return !item.isArchived;
+  if (mode === "UNREAD") return !item.isArchived && !item.isRead;
   if (mode === "ARCHIVED") return item.isArchived;
   return true;
 }
 
 function formatReceivedAt(receivedAt: string) {
-  return new Date(receivedAt).toLocaleString("ko-KR");
+  const date = new Date(receivedAt);
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  let hour = date.getHours();
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const period = hour < 12 ? "오전" : "오후";
+  hour = hour % 12 || 12;
+  return `${year}. ${month}. ${day}. ${period} ${hour}:${minute}`;
 }
 
 export default function BulletinBoard({ items }: BulletinBoardProps) {
@@ -145,11 +155,16 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
           return a.isPinned ? -1 : 1;
         }
 
+        if (a.isRead !== b.isRead) {
+          return a.isRead ? 1 : -1;
+        }
+
         return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
       });
   }, [items, viewMode, sourceFilter, dateFilter, keyword]);
 
   const activeCount = items.filter((item) => !item.isArchived).length;
+  const unreadCount = items.filter((item) => !item.isArchived && !item.isRead).length;
   const archivedCount = items.filter((item) => item.isArchived).length;
 
   if (!items.length) {
@@ -171,6 +186,13 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
             onClick={() => setViewMode("ACTIVE")}
           >
             활성 공지 <span className={styles.tabCount}>{activeCount}</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.tabButton} ${viewMode === "UNREAD" ? styles.tabButtonActive : ""}`}
+            onClick={() => setViewMode("UNREAD")}
+          >
+            읽지 않음 <span className={styles.tabCount}>{unreadCount}</span>
           </button>
           <button
             type="button"
@@ -238,7 +260,10 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
               item.sourceType === "SMS" ? styles.sourceBadgeSms : styles.sourceBadgeGmail;
 
             return (
-              <article key={item.id} className={`card ${styles.item} ${isOpen ? styles.itemOpen : ""}`}>
+              <article
+                key={item.id}
+                className={`card ${styles.item} ${isOpen ? styles.itemOpen : ""} ${!item.isRead ? styles.itemUnread : ""}`}
+              >
                 <button
                   type="button"
                   className={styles.itemButton}
@@ -248,6 +273,7 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
                   <div className={styles.itemTop}>
                     <div className={styles.metaGroup}>
                       <span className={`${styles.sourceBadge} ${sourceBadgeClass}`}>{item.sourceType}</span>
+                      {!item.isRead ? <span className={styles.unreadBadge}>UNREAD</span> : null}
                       {item.isPinned ? <span className={styles.pinBadge}>PINNED</span> : null}
                       {item.isArchived ? <span className={styles.archiveBadge}>ARCHIVED</span> : null}
                     </div>
@@ -267,6 +293,15 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
                   <div className={styles.body}>
                     <div className={styles.bodyInner}>
                       <div className={styles.actionRow}>
+                        <form action={toggleBulletinReadAction}>
+                          <input type="hidden" name="id" value={item.id} />
+                          <input type="hidden" name="nextRead" value={String(!item.isRead)} />
+                          <button type="submit" className={styles.itemActionButton}>
+                            {item.isRead ? <MailOpen size={14} /> : <BookOpenCheck size={14} />}
+                            {item.isRead ? "안읽음으로" : "읽음 처리"}
+                          </button>
+                        </form>
+
                         <form action={toggleBulletinPinAction}>
                           <input type="hidden" name="id" value={item.id} />
                           <input type="hidden" name="nextPinned" value={String(!item.isPinned)} />

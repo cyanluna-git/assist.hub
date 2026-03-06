@@ -66,6 +66,7 @@ model BulletinItem {
   title      String
   content    String
   sender     String?
+  isRead     Boolean  @default(false)
   isPinned   Boolean  @default(false)
   isArchived Boolean  @default(false)
   receivedAt DateTime

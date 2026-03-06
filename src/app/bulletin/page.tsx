@@ -65,6 +65,7 @@ export default async function BulletinPage() {
           content: item.content,
           sender: item.sender,
           receivedAt: item.receivedAt.toISOString(),
+          isRead: item.isRead,
           isPinned: item.isPinned,
           isArchived: item.isArchived,
         }))}

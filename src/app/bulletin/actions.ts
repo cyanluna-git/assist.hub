@@ -5,6 +5,7 @@ import {
   createManualBulletin,
   setBulletinArchived,
   setBulletinPinned,
+  setBulletinRead,
   syncAssistGmailBulletins,
 } from "@/lib/bulletin";
 
@@ -52,5 +53,17 @@ export async function toggleBulletinArchiveAction(formData: FormData) {
   }
 
   await setBulletinArchived(id, nextArchived);
+  revalidatePath("/bulletin");
+}
+
+export async function toggleBulletinReadAction(formData: FormData) {
+  const id = String(formData.get("id") || "").trim();
+  const nextRead = String(formData.get("nextRead") || "") === "true";
+
+  if (!id) {
+    return;
+  }
+
+  await setBulletinRead(id, nextRead);
   revalidatePath("/bulletin");
 }
