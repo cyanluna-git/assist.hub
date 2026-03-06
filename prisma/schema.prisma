@@ -25,6 +25,7 @@ model Material {
   localUrl    String   // "/materials/announcements/..."
   isRead      Boolean  @default(false)
   notes       Note[]
+  artifacts   MaterialArtifact[]
   course      Course   @relation(fields: [courseId], references: [id])
 }
 
@@ -32,9 +33,27 @@ model Note {
   id          String   @id @default(uuid())
   materialId  String
   content     String   // 마크다운 형식의 텍스트
-  aiSummary   String?  // AI가 생성한 요약본
+  aiSummary   String?  // 기존 Codex 요약 경로용 텍스트. NotebookLM artifact는 MaterialArtifact로 분리 저장한다.
   updatedAt   DateTime @updatedAt
   material    Material @relation(fields: [materialId], references: [id])
+}
+
+model MaterialArtifact {
+  id               String   @id @default(uuid())
+  materialId       String
+  artifactType     String   // "NOTEBOOKLM_SUMMARY" | "SLIDES" | "INFOGRAPHIC" | "AUDIO_OVERVIEW" | "MINDMAP"
+  status           String   @default("PENDING") // "PENDING" | "RUNNING" | "SUCCESS" | "ERROR"
+  sourceNotebookId String?  // NotebookLM notebook/studio identifier
+  sourceArtifactId String?  // NotebookLM artifact identifier
+  localPath        String?  // Local filesystem path if the artifact is downloaded
+  publicUrl        String?  // App-served URL or external URL for opening the artifact
+  errorMessage     String?  // Last generation/download error for retry UX
+  generatedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  material         Material @relation(fields: [materialId], references: [id])
+
+  @@unique([materialId, artifactType])
 }
 
 model Assignment {
