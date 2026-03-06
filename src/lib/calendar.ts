@@ -1,37 +1,39 @@
-import fs from "fs";
-import path from "path";
 import prisma from "./prisma";
 import { fetchManualScheduleItems } from "./schedule";
+import { buildGoogleOAuthClient } from "./google-auth";
 import { google } from "googleapis";
 
-const TOKEN_PATH = path.join(process.cwd(), "..", "ops", "token.json");
-const CREDENTIALS_PATH = path.join(process.cwd(), "..", "ops", "credentials.json");
-
 export async function exportAssignmentsToCalendar() {
-  if (!fs.existsSync(TOKEN_PATH)) {
-    throw new Error("token.json이 없습니다.");
-  }
-
-  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
-  
-  const { client_secret, client_id, redirect_uris } = credentials.installed;
-  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-  oAuth2Client.setCredentials(token);
-
+  const oAuth2Client = buildGoogleOAuthClient();
   const calendar = google.calendar({ version: "v3", auth: oAuth2Client });
+  const calendarId = "primary";
 
-  // 1. DB에서 마감일이 있는 과제 가져오기
   const assignments = await prisma.assignment.findMany({
     where: {
-      dueDate: { not: null }
-    }
+      dueDate: { not: null },
+    },
   });
   const manualItems = await fetchManualScheduleItems();
 
-  let count = 0;
+  let createdCount = 0;
+  let skippedCount = 0;
+
   for (const work of assignments) {
     if (!work.dueDate) continue;
+    const existingRecord = await prisma.calendarExportRecord.findUnique({
+      where: {
+        calendarId_sourceType_sourceId: {
+          calendarId,
+          sourceType: "ASSIGNMENT",
+          sourceId: work.id,
+        },
+      },
+    });
+
+    if (existingRecord) {
+      skippedCount += 1;
+      continue;
+    }
 
     const event = {
       summary: `[과제 마감] ${work.title}`,
@@ -44,20 +46,43 @@ export async function exportAssignmentsToCalendar() {
       },
     };
 
-    try {
-      // 이미 등록된 이벤트인지 확인하는 로직은 여기서는 생략(단순 삽입)
-      await calendar.events.insert({
-        calendarId: "primary",
-        requestBody: event,
-      });
-      count++;
-    } catch (e) {
-      console.error(`과제 '${work.title}' 등록 실패:`, e);
+    const inserted = await calendar.events.insert({
+      calendarId,
+      requestBody: event,
+    });
+
+    if (!inserted.data.id) {
+      throw new Error(`과제 '${work.title}' 캘린더 등록 후 event id를 받지 못했습니다.`);
     }
+
+    await prisma.calendarExportRecord.create({
+      data: {
+        calendarId,
+        sourceType: "ASSIGNMENT",
+        sourceId: work.id,
+        eventId: inserted.data.id,
+      },
+    });
+
+    createdCount += 1;
   }
 
   for (const item of manualItems) {
     if (!item.startAt) continue;
+    const existingRecord = await prisma.calendarExportRecord.findUnique({
+      where: {
+        calendarId_sourceType_sourceId: {
+          calendarId,
+          sourceType: "MANUAL_SCHEDULE",
+          sourceId: item.id,
+        },
+      },
+    });
+
+    if (existingRecord) {
+      skippedCount += 1;
+      continue;
+    }
 
     const event = {
       summary: `[학사 일정] ${item.title}`,
@@ -70,16 +95,29 @@ export async function exportAssignmentsToCalendar() {
       },
     };
 
-    try {
-      await calendar.events.insert({
-        calendarId: "primary",
-        requestBody: event,
-      });
-      count++;
-    } catch (e) {
-      console.error(`수동 일정 '${item.title}' 등록 실패:`, e);
+    const inserted = await calendar.events.insert({
+      calendarId,
+      requestBody: event,
+    });
+
+    if (!inserted.data.id) {
+      throw new Error(`수동 일정 '${item.title}' 캘린더 등록 후 event id를 받지 못했습니다.`);
     }
+
+    await prisma.calendarExportRecord.create({
+      data: {
+        calendarId,
+        sourceType: "MANUAL_SCHEDULE",
+        sourceId: item.id,
+        eventId: inserted.data.id,
+      },
+    });
+
+    createdCount += 1;
   }
 
-  return count;
+  return {
+    createdCount,
+    skippedCount,
+  };
 }

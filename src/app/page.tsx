@@ -1,26 +1,38 @@
 import prisma from "@/lib/prisma";
-import { syncMaterials } from "@/lib/sync";
-import { Clock3, ExternalLink, FileText } from "lucide-react";
+import { COURSE_ID, COURSE_TITLE } from "@/lib/sync";
+import { fetchSyncState } from "@/lib/sync-state";
+import { Clock3, ExternalLink, FileText, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { syncClassroomDataAction } from "./dashboard-actions";
 import styles from "./dashboard.module.css";
 
 export default async function Dashboard() {
-  await syncMaterials();
-
-  const course = await prisma.course.findUnique({
-    where: { id: "841669156744" },
-    include: {
-      materials: {
-        take: 5,
-        orderBy: { id: "desc" },
+  const [course, classroomSync] = await Promise.all([
+    prisma.course.findUnique({
+      where: { id: COURSE_ID },
+      include: {
+        materials: {
+          take: 5,
+          orderBy: { id: "desc" },
+        },
+        assignments: true,
       },
-      assignments: true,
-    },
-  });
+    }),
+    fetchSyncState("CLASSROOM"),
+  ]);
 
   const totalAssignments = course?.assignments.length ?? 0;
   const dueAssignments = course?.assignments.filter((item) => item.dueDate).length ?? 0;
   const unreadMaterials = course?.materials.filter((item) => !item.isRead).length ?? 0;
+
+  const syncToneClass =
+    classroomSync.status === "SUCCESS"
+      ? styles.syncToneSuccess
+      : classroomSync.status === "ERROR"
+        ? styles.syncToneError
+        : classroomSync.status === "RUNNING"
+          ? styles.syncToneRunning
+          : styles.syncToneIdle;
 
   return (
     <>
@@ -33,8 +45,8 @@ export default async function Dashboard() {
       <section className={styles.hero}>
         <article className={styles.heroMain}>
           <p className="page-kicker">Current Term</p>
-          <h2 className={styles.courseTitle}>{course?.title || "수업 정보 없음"}</h2>
-          <p className={styles.courseMeta}>Classroom ID: 841669156744</p>
+          <h2 className={styles.courseTitle}>{course?.title || COURSE_TITLE}</h2>
+          <p className={styles.courseMeta}>Classroom ID: {COURSE_ID}</p>
           <div className={styles.courseActions}>
             <a
               href="https://classroom.google.com/c/ODQxNjY5MTU2NzQ0"
@@ -49,8 +61,12 @@ export default async function Dashboard() {
             </Link>
           </div>
           <div className={styles.heroMeta}>
-            <span className={styles.tag}>Sync Enabled</span>
-            <span className={styles.tag}>Prisma + SQLite</span>
+            <span className={`${styles.tag} ${syncToneClass}`}>{getSyncStatusLabel(classroomSync.status)}</span>
+            <span className={styles.tag}>
+              {classroomSync.lastSucceededAt
+                ? `마지막 성공 ${formatDateTime(classroomSync.lastSucceededAt)}`
+                : "아직 동기화 기록 없음"}
+            </span>
           </div>
         </article>
 
@@ -96,18 +112,30 @@ export default async function Dashboard() {
                 </li>
               ))
             ) : (
-              <li className={styles.materialRow}>동기화된 자료가 없습니다.</li>
+              <li className={styles.materialRow}>동기화된 자료가 없습니다. 아래 Sync Center에서 직접 동기화를 실행하세요.</li>
             )}
           </ul>
         </article>
 
         <article className={`card ${styles.section}`}>
           <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Next Action</h3>
+            <h3 className={styles.sectionTitle}>Sync Center</h3>
           </div>
-          <div className={styles.timelineItem}>
-            <p className={styles.timelineItemTitle}>일정 동기화 점검</p>
-            <p className={styles.timelineItemText}>Schedule 화면에서 Google Calendar 내보내기를 실행해 이번 주 마감 일정을 반영하세요.</p>
+          <div className={styles.syncCard}>
+            <div className={styles.syncHeader}>
+              <div>
+                <p className={styles.syncTitle}>Classroom 자료/과제 동기화</p>
+                <p className={styles.syncMeta}>{getSyncStatusDescription(classroomSync)}</p>
+              </div>
+              <span className={`${styles.statusPill} ${syncToneClass}`}>{getSyncStatusLabel(classroomSync.status)}</span>
+            </div>
+            {classroomSync.lastMessage ? <p className={styles.syncMessage}>{classroomSync.lastMessage}</p> : null}
+            <form action={syncClassroomDataAction}>
+              <button type="submit" className={styles.secondaryBtn}>
+                <RefreshCw size={14} />
+                Classroom 동기화 실행
+              </button>
+            </form>
           </div>
         </article>
 
@@ -123,13 +151,55 @@ export default async function Dashboard() {
             <div className={styles.timelineItem}>
               <p className={styles.timelineItemTitle}>
                 <Clock3 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
-                준비 중 기능
+                운영 방식
               </p>
-              <p className={styles.timelineItemText}>과제 상태 자동 추적과 타임라인 시각화를 다음 라운드에서 통합할 예정입니다.</p>
+              <p className={styles.timelineItemText}>외부 API 동기화는 렌더 중 자동 실행하지 않습니다. 필요할 때 직접 실행하고, 실패 원인은 상태 카드에서 바로 확인합니다.</p>
             </div>
           </div>
         </article>
       </section>
     </>
   );
+}
+
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(value);
+}
+
+function getSyncStatusLabel(status: string) {
+  switch (status) {
+    case "SUCCESS":
+      return "Synced";
+    case "ERROR":
+      return "Failed";
+    case "RUNNING":
+      return "Running";
+    default:
+      return "Idle";
+  }
+}
+
+function getSyncStatusDescription(syncState: Awaited<ReturnType<typeof fetchSyncState>>) {
+  if (syncState.status === "ERROR") {
+    return syncState.lastFinishedAt
+      ? `실패 시각 ${formatDateTime(syncState.lastFinishedAt)}`
+      : "최근 실패 기록이 있습니다.";
+  }
+
+  if (syncState.lastSucceededAt) {
+    return `최근 성공 ${formatDateTime(syncState.lastSucceededAt)}${syncState.lastItemCount !== null ? ` · ${syncState.lastItemCount}건` : ""}`;
+  }
+
+  if (syncState.status === "RUNNING" && syncState.lastStartedAt) {
+    return `실행 시작 ${formatDateTime(syncState.lastStartedAt)}`;
+  }
+
+  return "아직 수동 동기화를 실행하지 않았습니다.";
 }

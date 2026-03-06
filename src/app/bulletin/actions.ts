@@ -22,13 +22,8 @@ export async function addManualBulletinAction(formData: FormData) {
 }
 
 export async function syncGmailBulletinsAction() {
-  try {
-    await syncAssistGmailBulletins();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown Gmail sync error";
-    console.error("Bulletin sync failed:", message);
-  }
-
+  await syncAssistGmailBulletins();
+  revalidatePath("/");
   revalidatePath("/bulletin");
 }
 

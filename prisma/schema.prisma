@@ -73,3 +73,28 @@ model BulletinItem {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+model SyncState {
+  key             String   @id
+  label           String
+  status          String   @default("IDLE")
+  lastStartedAt   DateTime?
+  lastFinishedAt  DateTime?
+  lastSucceededAt DateTime?
+  lastMessage     String?
+  lastItemCount   Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model CalendarExportRecord {
+  id         String   @id @default(uuid())
+  calendarId String
+  sourceType String
+  sourceId   String
+  eventId    String
+  exportedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([calendarId, sourceType, sourceId])
+}

@@ -1,11 +1,20 @@
 import { Mail, MessageSquarePlus, RefreshCw } from "lucide-react";
 import { fetchBulletins } from "@/lib/bulletin";
+import { fetchSyncState } from "@/lib/sync-state";
 import { addManualBulletinAction, syncGmailBulletinsAction } from "./actions";
 import BulletinBoard from "./BulletinBoard";
 import styles from "./bulletin.module.css";
 
 export default async function BulletinPage() {
-  const bulletins = await fetchBulletins();
+  const [bulletins, gmailSync] = await Promise.all([fetchBulletins(), fetchSyncState("GMAIL")]);
+  const syncToneClass =
+    gmailSync.status === "SUCCESS"
+      ? styles.syncToneSuccess
+      : gmailSync.status === "ERROR"
+        ? styles.syncToneError
+        : gmailSync.status === "RUNNING"
+          ? styles.syncToneRunning
+          : styles.syncToneIdle;
 
   return (
     <>
@@ -42,6 +51,11 @@ export default async function BulletinPage() {
             Gmail 공지 수집
           </h2>
           <p className={styles.panelText}>Gmail에서 `assist.ac.kr` 발신 메일만 읽어와 Bulletin에 적재합니다.</p>
+          <div className={styles.syncSummary}>
+            <span className={`${styles.syncBadge} ${syncToneClass}`}>{getSyncStatusLabel(gmailSync.status)}</span>
+            <p className={styles.syncMeta}>{getSyncStatusDescription(gmailSync)}</p>
+            {gmailSync.lastMessage ? <p className={styles.syncMessage}>{gmailSync.lastMessage}</p> : null}
+          </div>
 
           <form action={syncGmailBulletinsAction} className={styles.form}>
             <button type="submit" className={styles.secondaryButton}>
@@ -72,4 +86,46 @@ export default async function BulletinPage() {
       />
     </>
   );
+}
+
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(value);
+}
+
+function getSyncStatusLabel(status: string) {
+  switch (status) {
+    case "SUCCESS":
+      return "Synced";
+    case "ERROR":
+      return "Failed";
+    case "RUNNING":
+      return "Running";
+    default:
+      return "Idle";
+  }
+}
+
+function getSyncStatusDescription(syncState: Awaited<ReturnType<typeof fetchSyncState>>) {
+  if (syncState.status === "ERROR") {
+    return syncState.lastFinishedAt
+      ? `실패 시각 ${formatDateTime(syncState.lastFinishedAt)}`
+      : "최근 동기화 실패 기록이 있습니다.";
+  }
+
+  if (syncState.lastSucceededAt) {
+    return `최근 성공 ${formatDateTime(syncState.lastSucceededAt)}${syncState.lastItemCount !== null ? ` · ${syncState.lastItemCount}건` : ""}`;
+  }
+
+  if (syncState.status === "RUNNING" && syncState.lastStartedAt) {
+    return `실행 시작 ${formatDateTime(syncState.lastStartedAt)}`;
+  }
+
+  return "아직 Gmail 동기화를 실행하지 않았습니다.";
 }

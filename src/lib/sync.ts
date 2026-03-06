@@ -1,118 +1,121 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import prisma from "./prisma";
 import { google } from "googleapis";
+import { buildGoogleOAuthClient } from "./google-auth";
+import { runTrackedSync } from "./sync-state";
 
 const MATERIALS_DIR = path.join(process.cwd(), "public", "materials");
-const COURSE_ID = "841669156744";
-const COURSE_TITLE = "[2026-1 AI·전략경영] AI개론";
-
-// Root 디렉토리의 인증 정보 참조
-const TOKEN_PATH = path.join(process.cwd(), "..", "ops", "token.json");
-const CREDENTIALS_PATH = path.join(process.cwd(), "..", "ops", "credentials.json");
+export const COURSE_ID = "841669156744";
+export const COURSE_TITLE = "[2026-1 AI·전략경영] AI개론";
 
 export async function syncMaterials() {
-  console.log("--- 자료 및 과제 동기화 시작 ---");
+  return runTrackedSync("CLASSROOM", async () => {
+    await prisma.course.upsert({
+      where: { id: COURSE_ID },
+      update: { title: COURSE_TITLE },
+      create: { id: COURSE_ID, title: COURSE_TITLE },
+    });
 
-  // 1. 코스 생성 (없을 경우)
-  await prisma.course.upsert({
-    where: { id: COURSE_ID },
-    update: {},
-    create: { id: COURSE_ID, title: COURSE_TITLE },
+    const materialCount = await syncLocalMaterials();
+    const assignmentCount = await syncAssignmentsFromAPI();
+
+    return {
+      count: materialCount + assignmentCount,
+      message: `자료 ${materialCount}개, 과제 ${assignmentCount}개를 확인했습니다.`,
+    };
   });
-
-  // 2. 파일 동기화 (announcements, assignments, obsidian_notes 폴더)
-  const categories = ["announcements", "assignments", "obsidian_notes"];
-  for (const cat of categories) {
-    const catPath = path.join(MATERIALS_DIR, cat);
-    if (!fs.existsSync(catPath)) continue;
-    const files = getAllFiles(catPath);
-    for (const f of files) {
-      if (f.endsWith(".pdf") || f.endsWith(".md")) {
-        const relativeUrl = f.replace(path.join(process.cwd(), "public"), "");
-        await prisma.material.upsert({
-          where: { id: relativeUrl },
-          update: {},
-          create: {
-            id: relativeUrl,
-            courseId: COURSE_ID,
-            title: path.basename(f),
-            type: f.endsWith(".pdf") ? "pdf" : "md",
-            localUrl: relativeUrl,
-          },
-        });
-      }
-    }
-  }
-
-  // 3. 구글 클래스룸 과제(CourseWork) 동기화
-  await syncAssignmentsFromAPI();
-
-  console.log("--- 동기화 완료 ---");
 }
 
 async function syncAssignmentsFromAPI() {
-  if (!fs.existsSync(TOKEN_PATH)) {
-    console.warn("token.json이 없어 과제 API 동기화를 건너뜁니다.");
-    return;
+  const oAuth2Client = buildGoogleOAuthClient();
+  const classroom = google.classroom({ version: "v1", auth: oAuth2Client });
+  let syncedCount = 0;
+
+  const res = await classroom.courses.courseWork.list({ courseId: COURSE_ID });
+  const coursework = res.data.courseWork || [];
+
+  for (const work of coursework) {
+    if (!work.id || !work.title) continue;
+
+    let dueDate: Date | null = null;
+    if (work.dueDate) {
+      const { year, month, day } = work.dueDate;
+      const hours = work.dueTime?.hours ?? 0;
+      const minutes = work.dueTime?.minutes ?? 0;
+
+      if (year && month && day) {
+        dueDate = new Date(year, month - 1, day, hours, minutes);
+      }
+    }
+
+    await prisma.assignment.upsert({
+      where: { id: work.id },
+      update: {
+        title: work.title,
+        dueDate,
+      },
+      create: {
+        id: work.id,
+        courseId: COURSE_ID,
+        title: work.title,
+        dueDate,
+        status: "TODO",
+      },
+    });
+
+    syncedCount += 1;
   }
 
-  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
-  
-  const { client_secret, client_id, redirect_uris } = credentials.installed;
-  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-  oAuth2Client.setCredentials(token);
+  return syncedCount;
+}
 
-  const classroom = google.classroom({ version: "v1", auth: oAuth2Client });
+async function syncLocalMaterials() {
+  let syncedCount = 0;
+  const categories = ["announcements", "assignments", "obsidian_notes"];
 
-  try {
-    const res = await classroom.courses.courseWork.list({ courseId: COURSE_ID });
-    const coursework = res.data.courseWork || [];
+  for (const category of categories) {
+    const categoryPath = path.join(MATERIALS_DIR, category);
+    if (!fs.existsSync(categoryPath)) continue;
 
-    for (const work of coursework) {
-      if (!work.id || !work.title) continue;
-
-      let dueDate: Date | null = null;
-      if (work.dueDate) {
-        const { year, month, day } = work.dueDate;
-        const hours = work.dueTime?.hours ?? 0;
-        const minutes = work.dueTime?.minutes ?? 0;
-
-        if (year && month && day) {
-          dueDate = new Date(year, month - 1, day, hours, minutes);
-        }
+    const files = getAllFiles(categoryPath);
+    for (const file of files) {
+      if (!file.endsWith(".pdf") && !file.endsWith(".md")) {
+        continue;
       }
 
-      await prisma.assignment.upsert({
-        where: { id: work.id },
+      const relativeUrl = file.replace(path.join(process.cwd(), "public"), "");
+      await prisma.material.upsert({
+        where: { id: relativeUrl },
         update: {
-          title: work.title,
-          dueDate: dueDate,
+          title: path.basename(file),
+          type: file.endsWith(".pdf") ? "pdf" : "md",
+          localUrl: relativeUrl,
         },
         create: {
-          id: work.id,
+          id: relativeUrl,
           courseId: COURSE_ID,
-          title: work.title,
-          dueDate: dueDate,
-          status: "TODO",
+          title: path.basename(file),
+          type: file.endsWith(".pdf") ? "pdf" : "md",
+          localUrl: relativeUrl,
         },
       });
+      syncedCount += 1;
     }
-    console.log(`${coursework.length}개 과제 API 동기화 완료`);
-  } catch (error) {
-    console.error("클래스룸 과제 동기화 중 오류:", error);
   }
+
+  return syncedCount;
 }
 
 function getAllFiles(dirPath: string, arrayOfFiles: string[] = []) {
   if (!fs.existsSync(dirPath)) return arrayOfFiles;
   const files = fs.readdirSync(dirPath);
   files.forEach(function (file) {
-    if (fs.statSync(dirPath + "/" + file).isDirectory()) {
-      arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles);
+    const nextPath = path.join(dirPath, file);
+    if (fs.statSync(nextPath).isDirectory()) {
+      arrayOfFiles = getAllFiles(nextPath, arrayOfFiles);
     } else {
-      arrayOfFiles.push(path.join(dirPath, "/", file));
+      arrayOfFiles.push(nextPath);
     }
   });
   return arrayOfFiles;

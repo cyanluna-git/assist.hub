@@ -1,10 +1,7 @@
-import fs from "node:fs";
-import path from "node:path";
 import prisma from "./prisma";
+import { buildGoogleOAuthClient } from "./google-auth";
+import { runTrackedSync } from "./sync-state";
 import { google } from "googleapis";
-
-const TOKEN_PATH = path.join(process.cwd(), "..", "ops", "token.json");
-const CREDENTIALS_PATH = path.join(process.cwd(), "..", "ops", "credentials.json");
 
 type GmailPayloadNode = {
   mimeType?: string | null;
@@ -64,19 +61,6 @@ function getHeaderValue(
   return headers?.find((header) => header.name?.toLowerCase() === targetName.toLowerCase())?.value ?? "";
 }
 
-function buildOAuthClient() {
-  if (!fs.existsSync(TOKEN_PATH)) {
-    throw new Error("ops/token.json이 없습니다. Gmail 연동을 위해 인증을 먼저 갱신하세요.");
-  }
-
-  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
-  const { client_secret, client_id, redirect_uris } = credentials.installed;
-  const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-  client.setCredentials(token);
-  return client;
-}
-
 export async function createManualBulletin(title: string, content: string) {
   return prisma.bulletinItem.create({
     data: {
@@ -91,81 +75,86 @@ export async function createManualBulletin(title: string, content: string) {
 }
 
 export async function syncAssistGmailBulletins() {
-  const auth = buildOAuthClient();
-  const gmail = google.gmail({ version: "v1", auth });
+  return runTrackedSync("GMAIL", async () => {
+    const auth = buildGoogleOAuthClient();
+    const gmail = google.gmail({ version: "v1", auth });
 
-  const latestSyncedRows = await prisma.$queryRaw<LatestGmailSyncRow[]>`
-    SELECT MAX("receivedAt") AS "receivedAt"
-    FROM "BulletinItem"
-    WHERE "sourceType" = 'GMAIL'
-  `;
+    const latestSyncedRows = await prisma.$queryRaw<LatestGmailSyncRow[]>`
+      SELECT MAX("receivedAt") AS "receivedAt"
+      FROM "BulletinItem"
+      WHERE "sourceType" = 'GMAIL'
+    `;
 
-  const latestSyncedAt = latestSyncedRows[0]?.receivedAt ? new Date(latestSyncedRows[0].receivedAt) : null;
-  const overlapSeconds = 120;
-  const afterEpochSeconds = latestSyncedAt
-    ? Math.max(0, Math.floor(latestSyncedAt.getTime() / 1000) - overlapSeconds)
-    : null;
-  const query = afterEpochSeconds
-    ? `from:assist.ac.kr after:${afterEpochSeconds}`
-    : "from:assist.ac.kr";
+    const latestSyncedAt = latestSyncedRows[0]?.receivedAt ? new Date(latestSyncedRows[0].receivedAt) : null;
+    const overlapSeconds = 120;
+    const afterEpochSeconds = latestSyncedAt
+      ? Math.max(0, Math.floor(latestSyncedAt.getTime() / 1000) - overlapSeconds)
+      : null;
+    const query = afterEpochSeconds
+      ? `from:assist.ac.kr after:${afterEpochSeconds}`
+      : "from:assist.ac.kr";
 
-  const messages: Array<{ id?: string | null }> = [];
-  let nextPageToken: string | undefined;
+    const messages: Array<{ id?: string | null }> = [];
+    let nextPageToken: string | undefined;
 
-  do {
-    const listResponse = await gmail.users.messages.list({
-      userId: "me",
-      q: query,
-      maxResults: 100,
-      pageToken: nextPageToken,
-    });
+    do {
+      const listResponse = await gmail.users.messages.list({
+        userId: "me",
+        q: query,
+        maxResults: 100,
+        pageToken: nextPageToken,
+      });
 
-    messages.push(...(listResponse.data.messages || []));
-    nextPageToken = listResponse.data.nextPageToken || undefined;
-  } while (nextPageToken);
+      messages.push(...(listResponse.data.messages || []));
+      nextPageToken = listResponse.data.nextPageToken || undefined;
+    } while (nextPageToken);
 
-  let syncedCount = 0;
+    let syncedCount = 0;
 
-  for (const message of messages) {
-    if (!message.id) continue;
+    for (const message of messages) {
+      if (!message.id) continue;
 
-    const detail = await gmail.users.messages.get({
-      userId: "me",
-      id: message.id,
-      format: "full",
-    });
+      const detail = await gmail.users.messages.get({
+        userId: "me",
+        id: message.id,
+        format: "full",
+      });
 
-    const payload = detail.data.payload;
-    const headers = payload?.headers;
-    const subject = getHeaderValue(headers, "Subject") || "제목 없음";
-    const from = getHeaderValue(headers, "From") || "assist.ac.kr";
-    const dateHeader = getHeaderValue(headers, "Date");
-    const content = extractPlainText(payload).trim() || detail.data.snippet || "";
-    const receivedAt = dateHeader ? new Date(dateHeader) : new Date();
+      const payload = detail.data.payload;
+      const headers = payload?.headers;
+      const subject = getHeaderValue(headers, "Subject") || "제목 없음";
+      const from = getHeaderValue(headers, "From") || "assist.ac.kr";
+      const dateHeader = getHeaderValue(headers, "Date");
+      const content = extractPlainText(payload).trim() || detail.data.snippet || "";
+      const receivedAt = dateHeader ? new Date(dateHeader) : new Date();
 
-    await prisma.bulletinItem.upsert({
-      where: { externalId: message.id },
-      update: {
-        title: subject,
-        content,
-        sender: from,
-        receivedAt,
-      },
-      create: {
-        sourceType: "GMAIL",
-        externalId: message.id,
-        title: subject,
-        content,
-        sender: from,
-        isRead: false,
-        receivedAt,
-      },
-    });
+      await prisma.bulletinItem.upsert({
+        where: { externalId: message.id },
+        update: {
+          title: subject,
+          content,
+          sender: from,
+          receivedAt,
+        },
+        create: {
+          sourceType: "GMAIL",
+          externalId: message.id,
+          title: subject,
+          content,
+          sender: from,
+          isRead: false,
+          receivedAt,
+        },
+      });
 
-    syncedCount += 1;
-  }
+      syncedCount += 1;
+    }
 
-  return syncedCount;
+    return {
+      count: syncedCount,
+      message: syncedCount > 0 ? `신규/갱신 Gmail 공지 ${syncedCount}건을 반영했습니다.` : "새로 반영할 Gmail 공지가 없습니다.",
+    };
+  });
 }
 
 export async function fetchBulletins() {

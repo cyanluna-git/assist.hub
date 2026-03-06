@@ -28,6 +28,29 @@
   font-size: 12px;
 }
 
+.syncToneSuccess {
+  border-color: rgba(23, 119, 77, 0.22);
+  background: rgba(23, 119, 77, 0.08);
+  color: #126244;
+}
+
+.syncToneError {
+  border-color: rgba(177, 49, 35, 0.22);
+  background: rgba(177, 49, 35, 0.08);
+  color: #9c2b21;
+}
+
+.syncToneRunning {
+  border-color: rgba(13, 94, 168, 0.24);
+  background: rgba(13, 94, 168, 0.08);
+  color: #0f5494;
+}
+
+.syncToneIdle {
+  border-color: var(--line-strong);
+  color: var(--text-muted);
+}
+
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -211,6 +234,52 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
+}
+
+.syncCard {
+  display: grid;
+  gap: 14px;
+}
+
+.syncHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.syncTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.syncMeta {
+  margin: 4px 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.syncMessage {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 @media (max-width: 1100px) {
