@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Download, Edit3, FileUp, Focus, Headphones, Ima
 import Link from "next/link";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
+import PdfReader from "./PdfReader";
 import {
   MATERIAL_ARTIFACT_UPLOAD_DEFINITIONS,
   canPreviewMaterialArtifact,
@@ -395,7 +396,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
               </div>
             </article>
           ) : material.type === "pdf" ? (
-            <iframe src={`${material.localUrl}#toolbar=0`} className={styles.pdf} title={material.title} />
+            <PdfReader src={material.localUrl} title={material.title} storageKey={material.id} />
           ) : (
             <div className={styles.markdown}>
               <ReactMarkdown>{mdContent || ""}</ReactMarkdown>
