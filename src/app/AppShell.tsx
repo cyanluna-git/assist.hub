@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import type { GlobalSearchItem } from "@/lib/search";
+import ContinueReadingPanel from "./ContinueReadingPanel";
 import GlobalSearch from "./GlobalSearch";
 import SidebarNav, { type NavItem } from "./SidebarNav";
 import styles from "./layout.module.css";
@@ -65,6 +66,8 @@ export default function AppShell({ children, navItems, searchItems }: AppShellPr
           <p className={styles.userHint}>이번 주 학습 흐름을 점검하세요.</p>
           <GlobalSearch items={searchItems} compact={collapsed} />
         </section>
+
+        <ContinueReadingPanel collapsed={collapsed} />
 
         <SidebarNav items={navItems} collapsed={collapsed} />
 

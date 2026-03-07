@@ -3,13 +3,19 @@ import path from "node:path";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import DocumentViewer from "./DocumentViewer";
+import type { RecentMaterialResumeView } from "@/lib/recent-materials";
 
 interface PageProps {
-  searchParams: Promise<{ path: string }>;
+  searchParams: Promise<{
+    path?: string;
+    resumeView?: string;
+    artifactId?: string;
+    summaryEdit?: string;
+  }>;
 }
 
 export default async function ViewPage({ searchParams }: PageProps) {
-  const { path: resourcePath } = await searchParams;
+  const { path: resourcePath, resumeView, artifactId, summaryEdit } = await searchParams;
 
   if (!resourcePath) return notFound();
 
@@ -35,5 +41,17 @@ export default async function ViewPage({ searchParams }: PageProps) {
     }
   }
 
-  return <DocumentViewer key={material.id} material={material} mdContent={mdContent} />;
+  const initialResumeView: RecentMaterialResumeView =
+    resumeView === "document" || resumeView === "summary" || resumeView === "artifact" ? resumeView : "default";
+
+  return (
+    <DocumentViewer
+      key={material.id}
+      material={material}
+      mdContent={mdContent}
+      initialResumeView={initialResumeView}
+      initialResumeArtifactId={artifactId ?? null}
+      initialSummaryEditing={summaryEdit === "1"}
+    />
+  );
 }

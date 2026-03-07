@@ -17,6 +17,7 @@ import {
   getMaterialArtifactPreviewKind,
   type MaterialArtifactType,
 } from "@/lib/material-artifacts";
+import { upsertRecentMaterial, type RecentMaterialResumeView } from "@/lib/recent-materials";
 import { deleteMaterialArtifact, polishMaterialSummary, saveMaterialNote, saveMaterialSummary, uploadMaterialArtifact } from "./actions";
 import styles from "./document-viewer.module.css";
 
@@ -25,17 +26,50 @@ type ViewerMaterial = Material & { notes: Note[]; artifacts: MaterialArtifact[] 
 interface DocumentViewerProps {
   material: ViewerMaterial;
   mdContent?: string;
+  initialResumeView?: RecentMaterialResumeView;
+  initialResumeArtifactId?: string | null;
+  initialSummaryEditing?: boolean;
 }
 
-export default function DocumentViewer({ material, mdContent }: DocumentViewerProps) {
+function resolveInitialFocusTarget(
+  resumeView: RecentMaterialResumeView,
+  artifactId: string | null | undefined,
+  artifacts: MaterialArtifact[],
+) {
+  if (resumeView === "document") {
+    return "document" as const;
+  }
+
+  if (resumeView === "summary") {
+    return "summary" as const;
+  }
+
+  if (resumeView === "artifact" && artifactId && artifacts.some((artifact) => artifact.id === artifactId)) {
+    return `artifact:${artifactId}` as const;
+  }
+
+  return null;
+}
+
+export default function DocumentViewer({
+  material,
+  mdContent,
+  initialResumeView = "default",
+  initialResumeArtifactId = null,
+  initialSummaryEditing = false,
+}: DocumentViewerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveVersionRef = useRef(0);
-  const [focusTarget, setFocusTarget] = useState<"document" | "summary" | `artifact:${string}` | null>(null);
+  const [focusTarget, setFocusTarget] = useState<"document" | "summary" | `artifact:${string}` | null>(() =>
+    resolveInitialFocusTarget(initialResumeView, initialResumeArtifactId, material.artifacts || []),
+  );
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [summary, setSummary] = useState(material.notes?.[0]?.aiSummary || "");
   const [persistedSummary, setPersistedSummary] = useState(material.notes?.[0]?.aiSummary || "");
-  const [isSummaryEditing, setIsSummaryEditing] = useState(!material.notes?.[0]?.aiSummary);
+  const [isSummaryEditing, setIsSummaryEditing] = useState(
+    () => (initialResumeView === "summary" && initialSummaryEditing) || !material.notes?.[0]?.aiSummary,
+  );
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
   const [noteContent, setNoteContent] = useState(material.notes?.[0]?.content || "");
   const [persistedNoteContent, setPersistedNoteContent] = useState(material.notes?.[0]?.content || "");
@@ -77,6 +111,37 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
     () => artifacts.find((artifact) => artifact.id === focusedArtifactId) ?? null,
     [artifacts, focusedArtifactId],
   );
+  const recentResumeContext = useMemo(() => {
+    if (focusedArtifactId) {
+      return {
+        resumeView: "artifact" as const,
+        artifactId: focusedArtifactId,
+        summaryEditing: false,
+      };
+    }
+
+    if (focusTarget === "document") {
+      return {
+        resumeView: "document" as const,
+        artifactId: undefined,
+        summaryEditing: false,
+      };
+    }
+
+    if (focusTarget === "summary" || isSummaryEditing) {
+      return {
+        resumeView: "summary" as const,
+        artifactId: undefined,
+        summaryEditing: isSummaryEditing,
+      };
+    }
+
+    return {
+      resumeView: "default" as const,
+      artifactId: undefined,
+      summaryEditing: false,
+    };
+  }, [focusTarget, focusedArtifactId, isSummaryEditing]);
 
   async function handleFullscreenToggle() {
     const root = rootRef.current;
@@ -102,6 +167,26 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
       document.removeEventListener("fullscreenchange", syncFullscreenState);
     };
   }, []);
+
+  useEffect(() => {
+    upsertRecentMaterial({
+      materialId: material.id,
+      materialPath: material.localUrl,
+      materialTitle: material.title,
+      materialType: material.type,
+      resumeView: recentResumeContext.resumeView,
+      artifactId: recentResumeContext.artifactId,
+      summaryEditing: recentResumeContext.summaryEditing,
+    });
+  }, [
+    material.id,
+    material.localUrl,
+    material.title,
+    material.type,
+    recentResumeContext.artifactId,
+    recentResumeContext.resumeView,
+    recentResumeContext.summaryEditing,
+  ]);
 
   useEffect(() => {
     if (noteContent === persistedNoteContent) {
