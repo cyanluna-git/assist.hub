@@ -89,12 +89,32 @@ public/               # app-served files or symlink mounts
 docs/                 # operational docs
 ```
 
-## Local Setup
+## Installation
 
-### Recommended: guided first-time setup
+### Prerequisites
+
+- macOS or another Unix-like shell environment
+- Node.js 20+
+- npm
+- Python 3
+- Google account access if you want Classroom/Gmail sync
+
+### 1. Clone the repo
 
 ```bash
-cd /Users/cyanluna-pro16/dev/assist.ai.mba/assist-hub
+git clone https://github.com/cyanluna-git/assist.hub.git
+cd assist.hub
+```
+
+If you are working from the monorepo layout used by the author, the app lives in:
+
+```bash
+cd assist.ai.mba/assist-hub
+```
+
+### 2. Recommended: guided first-time setup
+
+```bash
 ./init.sh
 ```
 
@@ -115,14 +135,39 @@ The init flow does the following:
 
 This is the intended setup path for classmates cloning the repo for the first time.
 
-### Manual setup
+### 3. Start the app
+
+```bash
+npm run dev
+```
+
+The app runs on:
+
+- `http://localhost:5103`
+
+### 4. Optional: enable Google sync
+
+If you want Classroom and Gmail sync, add your Google auth files in `../ops` and run:
+
+```bash
+python3 ../ops/setup_classroom.py
+```
+
+Then you can:
+
+- download Classroom files with `python3 ../ops/download_classroom_files.py`
+- convert extracted PDFs with `python3 ../ops/convert_to_obsidian.py`
+- use Bulletin Gmail sync and Dashboard Classroom sync from the app
+
+## Manual Installation
+
+Use this only if you do not want to run the guided setup script.
 
 If you need to do the steps yourself:
 
 ### 1. Install dependencies
 
 ```bash
-cd /Users/cyanluna-pro16/dev/assist.ai.mba/assist-hub
 npm install
 ```
 
@@ -161,9 +206,11 @@ node scripts/seed-profile.mjs --display-name "홍길동" --student-id "20260001"
 npm run dev
 ```
 
-The app runs on:
+### 5. Optional: enable Google sync
 
-- `http://localhost:5103`
+```bash
+python3 ../ops/setup_classroom.py
+```
 
 ## Core Commands
 
