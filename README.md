@@ -127,13 +127,26 @@ npm run setup:init
 The init flow does the following:
 
 - prompts for your display name and student ID
+- checks required local tools before changing files
 - creates or updates a local `.env`
 - creates the local `assist.db`
 - runs Prisma setup
 - seeds your personal workspace profile into the DB
 - optionally applies external storage mounts if you provide storage roots
+- reports Google sync readiness by checking `../ops` setup files
+- stops with contextual error messages if install / Prisma / seeding fails
 
 This is the intended setup path for classmates cloning the repo for the first time.
+
+If you want to automate onboarding without prompts, provide the setup values through environment variables:
+
+```bash
+ASSIST_SETUP_NAME="홍길동" \
+ASSIST_SETUP_STUDENT_ID="20260001" \
+ASSIST_SETUP_FORCE=1 \
+ASSIST_SETUP_NONINTERACTIVE=1 \
+./init.sh
+```
 
 ### 3. Start the app
 
@@ -158,6 +171,8 @@ Then you can:
 - download Classroom files with `python3 ../ops/download_classroom_files.py`
 - convert extracted PDFs with `python3 ../ops/convert_to_obsidian.py`
 - use Bulletin Gmail sync and Dashboard Classroom sync from the app
+
+`./init.sh` does not create Google OAuth credentials for you. It only tells you whether `../ops/credentials.json`, `../ops/token.json`, and `../ops/setup_classroom.py` are ready.
 
 ## Manual Installation
 

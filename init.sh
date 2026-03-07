@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OPS_DIR="$(cd "$ROOT_DIR/.." && pwd)/ops"
 ENV_FILE="${ASSIST_SETUP_ENV_FILE:-$ROOT_DIR/.env}"
 EXAMPLE_ENV="$ROOT_DIR/.env.example"
 DEFAULT_DATABASE_URL="${ASSIST_SETUP_DATABASE_URL:-file:./assist.db}"
@@ -14,6 +15,117 @@ ARTIFACT_ROOT="${ASSIST_SETUP_ARTIFACT_ROOT:-}"
 GMAIL_ROOT="${ASSIST_SETUP_GMAIL_ROOT:-}"
 FORCE_OVERWRITE="${ASSIST_SETUP_FORCE:-0}"
 SKIP_INSTALL="${ASSIST_SETUP_SKIP_INSTALL:-0}"
+NONINTERACTIVE="${ASSIST_SETUP_NONINTERACTIVE:-0}"
+
+CURRENT_STEP=""
+
+usage() {
+  cat <<'EOF'
+assist-hub init
+
+Usage:
+  ./init.sh
+
+Environment overrides:
+  ASSIST_SETUP_NAME
+  ASSIST_SETUP_STUDENT_ID
+  ASSIST_SETUP_AVATAR_LABEL
+  ASSIST_SETUP_MATERIALS_ROOT
+  ASSIST_SETUP_ARTIFACT_ROOT
+  ASSIST_SETUP_GMAIL_ROOT
+  ASSIST_SETUP_DATABASE_URL
+  ASSIST_SETUP_ENV_FILE
+  ASSIST_SETUP_FORCE=1
+  ASSIST_SETUP_SKIP_INSTALL=1
+  ASSIST_SETUP_NONINTERACTIVE=1
+
+Notes:
+  - This script writes a local .env and seeds WorkspaceProfile into assist.db.
+  - Google Classroom / Gmail sync is optional and depends on ../ops credentials.
+EOF
+}
+
+info() {
+  echo "[init] $*"
+}
+
+warn() {
+  echo "[init][warn] $*" >&2
+}
+
+fail() {
+  echo "[init][error] $*" >&2
+  exit 1
+}
+
+on_error() {
+  local line="$1"
+  local code="$2"
+  if [ -n "$CURRENT_STEP" ]; then
+    echo "[init][error] Failed during: $CURRENT_STEP (line $line, exit $code)" >&2
+  else
+    echo "[init][error] Setup failed at line $line (exit $code)" >&2
+  fi
+  echo "[init][error] Nothing is wrong with your secrets yet. Fix the reported prerequisite and run ./init.sh again." >&2
+}
+
+trap 'on_error "${LINENO}" "$?"' ERR
+
+run_step() {
+  local label="$1"
+  shift
+  CURRENT_STEP="$label"
+  "$@"
+  CURRENT_STEP=""
+}
+
+require_command() {
+  local command_name="$1"
+  local hint="$2"
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    fail "Missing required command: $command_name. $hint"
+  fi
+}
+
+ensure_parent_dir() {
+  local target_path="$1"
+  local parent_dir
+  parent_dir="$(dirname "$target_path")"
+  mkdir -p "$parent_dir"
+  if [ ! -w "$parent_dir" ]; then
+    fail "Directory is not writable: $parent_dir"
+  fi
+}
+
+database_path_from_url() {
+  local database_url="$1"
+  case "$database_url" in
+    file:./*)
+      printf '%s/%s' "$ROOT_DIR" "${database_url#file:./}"
+      ;;
+    file:/*)
+      printf '%s' "${database_url#file:}"
+      ;;
+    *)
+      fail "Unsupported DATABASE_URL for init.sh: $database_url. Use a SQLite file URL such as file:./assist.db"
+      ;;
+  esac
+}
+
+confirm_continue() {
+  local prompt="$1"
+
+  if [ "$NONINTERACTIVE" = "1" ] || [ "$FORCE_OVERWRITE" = "1" ]; then
+    return
+  fi
+
+  printf "%s [y/N]: " "$prompt"
+  local reply=""
+  IFS= read -r reply
+  if [ "$reply" != "y" ] && [ "$reply" != "Y" ]; then
+    fail "Aborted by user."
+  fi
+}
 
 prompt_required() {
   local label="$1"
@@ -22,6 +134,10 @@ prompt_required() {
   if [ -n "$value" ]; then
     printf '%s' "$value"
     return
+  fi
+
+  if [ "$NONINTERACTIVE" = "1" ]; then
+    fail "Missing required setup value: $label. Provide it through ASSIST_SETUP_* environment variables in non-interactive mode."
   fi
 
   local answer=""
@@ -41,6 +157,11 @@ prompt_optional() {
     return
   fi
 
+  if [ "$NONINTERACTIVE" = "1" ]; then
+    printf '%s' ""
+    return
+  fi
+
   local answer=""
   printf "%s (optional): " "$label"
   IFS= read -r answer
@@ -49,6 +170,9 @@ prompt_optional() {
 
 ensure_safe_env_write() {
   if [ -f "$ENV_FILE" ] && [ "$FORCE_OVERWRITE" != "1" ]; then
+    if [ "$NONINTERACTIVE" = "1" ]; then
+      fail ".env already exists at $ENV_FILE. Re-run with ASSIST_SETUP_FORCE=1 if overwrite is intended."
+    fi
     printf ".env already exists at %s. Overwrite it? [y/N]: " "$ENV_FILE"
     local reply=""
     IFS= read -r reply
@@ -57,6 +181,103 @@ ensure_safe_env_write() {
       exit 1
     fi
   fi
+}
+
+normalize_avatar_label() {
+  local display_name="$1"
+  local avatar_label="$2"
+
+  if [ -n "$avatar_label" ]; then
+    printf '%s' "$avatar_label"
+    return
+  fi
+
+  printf '%s' "${display_name:0:1}"
+}
+
+normalize_storage_root() {
+  local label="$1"
+  local input_value="$2"
+
+  if [ -z "$input_value" ]; then
+    printf '%s' ""
+    return
+  fi
+
+  local expanded="${input_value/#\~/$HOME}"
+  mkdir -p "$expanded"
+  if [ ! -d "$expanded" ]; then
+    fail "$label directory could not be created: $expanded"
+  fi
+  if [ ! -w "$expanded" ]; then
+    fail "$label directory is not writable: $expanded"
+  fi
+  printf '%s' "$expanded"
+}
+
+google_sync_readiness() {
+  local setup_script="$OPS_DIR/setup_classroom.py"
+  local credentials_path="$OPS_DIR/credentials.json"
+  local token_path="$OPS_DIR/token.json"
+
+  if [ ! -d "$OPS_DIR" ]; then
+    echo "Google sync: ops directory missing at $OPS_DIR"
+    return
+  fi
+
+  echo "Google sync readiness:"
+  if [ -f "$setup_script" ]; then
+    echo "  - setup script: ready"
+  else
+    echo "  - setup script: missing ($setup_script)"
+  fi
+
+  if [ -f "$credentials_path" ]; then
+    echo "  - credentials.json: present"
+  else
+    echo "  - credentials.json: missing"
+  fi
+
+  if [ -f "$token_path" ]; then
+    echo "  - token.json: present"
+  else
+    echo "  - token.json: missing"
+  fi
+}
+
+show_setup_summary() {
+  local database_url="$1"
+  local materials_root="$2"
+  local artifact_root="$3"
+  local gmail_root="$4"
+
+  echo
+  echo "Setup summary:"
+  echo "  - display name: $DISPLAY_NAME"
+  echo "  - student ID: $STUDENT_ID"
+  echo "  - avatar label: $AVATAR_LABEL"
+  echo "  - env file: $ENV_FILE"
+  echo "  - database URL: $database_url"
+  echo "  - materials root: ${materials_root:-repo-local public/materials}"
+  echo "  - artifacts root: ${artifact_root:-repo-local public/material-artifacts}"
+  echo "  - Gmail attachments root: ${gmail_root:-repo-local public/gmail-attachments}"
+  google_sync_readiness
+  echo
+}
+
+preflight_checks() {
+  require_command "node" "Install Node.js 20+ first."
+  require_command "npm" "Install npm with Node.js first."
+  require_command "npx" "Install npm with Node.js first."
+  require_command "python3" "Install Python 3 first."
+
+  [ -f "$EXAMPLE_ENV" ] || fail "Missing .env.example at $EXAMPLE_ENV"
+  [ -f "$ROOT_DIR/package.json" ] || fail "Missing package.json in $ROOT_DIR"
+  [ -f "$ROOT_DIR/prisma/schema.prisma" ] || fail "Missing prisma/schema.prisma"
+  [ -f "$ROOT_DIR/scripts/seed-profile.mjs" ] || fail "Missing scripts/seed-profile.mjs"
+
+  ensure_parent_dir "$ENV_FILE"
+  ensure_parent_dir "$(database_path_from_url "$DEFAULT_DATABASE_URL")"
 }
 
 write_env_file() {
@@ -78,13 +299,41 @@ EOF
 
 maybe_install_dependencies() {
   if [ "$SKIP_INSTALL" = "1" ]; then
+    info "Skipping npm install because ASSIST_SETUP_SKIP_INSTALL=1"
     return
   fi
 
   if [ ! -d "$ROOT_DIR/node_modules" ]; then
-    echo "Installing npm dependencies..."
+    info "Installing npm dependencies..."
     (cd "$ROOT_DIR" && npm install)
+  else
+    info "node_modules already present. Skipping npm install."
   fi
+}
+
+generate_prisma_client() {
+  cd "$ROOT_DIR"
+  npm run prisma:generate
+}
+
+push_database_schema() {
+  cd "$ROOT_DIR"
+  DATABASE_URL="$DEFAULT_DATABASE_URL" npx prisma db push
+}
+
+seed_workspace_profile() {
+  local seed_args=(
+    --display-name "$DISPLAY_NAME"
+    --student-id "$STUDENT_ID"
+    --database-url "$DEFAULT_DATABASE_URL"
+  )
+
+  if [ -n "$AVATAR_LABEL" ]; then
+    seed_args+=(--avatar-label "$AVATAR_LABEL")
+  fi
+
+  cd "$ROOT_DIR"
+  DATABASE_URL="$DEFAULT_DATABASE_URL" node ./scripts/seed-profile.mjs "${seed_args[@]}"
 }
 
 maybe_apply_storage_mounts() {
@@ -99,61 +348,64 @@ maybe_apply_storage_mounts() {
   fi
 
   if [ "$has_roots" -eq 1 ]; then
-    echo "Applying local storage mounts..."
+    require_command "git" "Git is required to apply local storage mounts."
+    info "Applying local storage mounts..."
     (cd "$ROOT_DIR" && npm run storage:apply-local)
+  else
+    info "No external storage roots provided. Keeping repo-local public/* directories."
   fi
 }
 
 main() {
-  if [ ! -f "$EXAMPLE_ENV" ]; then
-    echo "Missing .env.example at $EXAMPLE_ENV"
-    exit 1
+  if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
   fi
+
+  run_step "preflight checks" preflight_checks
 
   echo "== assist-hub local setup =="
   echo "This will create/update your local .env and seed your personal profile into assist.db."
+  echo "Google sync is optional. Missing auth files will be reported as follow-up work, not as a blocker."
   echo
 
   DISPLAY_NAME="$(prompt_required "Display name" "$DISPLAY_NAME")"
   STUDENT_ID="$(prompt_required "Student ID" "$STUDENT_ID")"
   AVATAR_LABEL="$(prompt_optional "Avatar label (default: first character of your name)" "$AVATAR_LABEL")"
-  MATERIALS_ROOT="$(prompt_optional "External materials storage root" "$MATERIALS_ROOT")"
-  ARTIFACT_ROOT="$(prompt_optional "External artifact storage root" "$ARTIFACT_ROOT")"
-  GMAIL_ROOT="$(prompt_optional "External Gmail attachment storage root" "$GMAIL_ROOT")"
+  MATERIALS_ROOT="$(prompt_optional "External materials storage root (leave blank to keep repo-local files)" "$MATERIALS_ROOT")"
+  ARTIFACT_ROOT="$(prompt_optional "External artifact storage root (leave blank to keep repo-local files)" "$ARTIFACT_ROOT")"
+  GMAIL_ROOT="$(prompt_optional "External Gmail attachment storage root (leave blank to keep repo-local files)" "$GMAIL_ROOT")"
+
+  AVATAR_LABEL="$(normalize_avatar_label "$DISPLAY_NAME" "$AVATAR_LABEL")"
+  MATERIALS_ROOT="$(normalize_storage_root "Materials storage root" "$MATERIALS_ROOT")"
+  ARTIFACT_ROOT="$(normalize_storage_root "Artifact storage root" "$ARTIFACT_ROOT")"
+  GMAIL_ROOT="$(normalize_storage_root "Gmail attachment storage root" "$GMAIL_ROOT")"
 
   ensure_safe_env_write
+  show_setup_summary "$DEFAULT_DATABASE_URL" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT"
+  confirm_continue "Continue with this setup?"
   write_env_file "$DEFAULT_DATABASE_URL" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT"
 
-  maybe_install_dependencies
+  run_step "dependency install" maybe_install_dependencies
 
-  echo "Generating Prisma client..."
-  (cd "$ROOT_DIR" && npm run prisma:generate)
+  info "Generating Prisma client..."
+  run_step "Prisma client generation" generate_prisma_client
 
-  echo "Creating/updating local database schema..."
-  (cd "$ROOT_DIR" && DATABASE_URL="$DEFAULT_DATABASE_URL" npx prisma db push)
+  info "Creating/updating local database schema..."
+  run_step "database schema push" push_database_schema
 
-  echo "Seeding workspace profile..."
-  local seed_args=(
-    --display-name "$DISPLAY_NAME"
-    --student-id "$STUDENT_ID"
-    --database-url "$DEFAULT_DATABASE_URL"
-  )
+  info "Seeding workspace profile..."
+  run_step "workspace profile seed" seed_workspace_profile
 
-  if [ -n "$AVATAR_LABEL" ]; then
-    seed_args+=(--avatar-label "$AVATAR_LABEL")
-  fi
-
-  (cd "$ROOT_DIR" && DATABASE_URL="$DEFAULT_DATABASE_URL" node ./scripts/seed-profile.mjs "${seed_args[@]}")
-
-  maybe_apply_storage_mounts
+  run_step "local storage mount apply" maybe_apply_storage_mounts
 
   echo
   echo "Setup complete."
   echo
   echo "Next steps:"
-  echo "1. Put Google auth files in ../ops if you need Classroom/Gmail sync."
-  echo "2. Run: python3 ../ops/setup_classroom.py"
-  echo "3. Run: npm run dev"
+  echo "1. Run: npm run dev"
+  echo "2. If you need Classroom/Gmail sync, put credentials.json in ../ops and run: python3 ../ops/setup_classroom.py"
+  echo "3. If you use external storage roots, verify them with: npm run storage:status"
 }
 
 main "$@"
