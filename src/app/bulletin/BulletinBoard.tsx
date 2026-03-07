@@ -15,6 +15,12 @@ type BulletinItemView = {
   isRead: boolean;
   isPinned: boolean;
   isArchived: boolean;
+  attachments: Array<{
+    id: string;
+    filename: string;
+    mimeType: string | null;
+    publicUrl: string;
+  }>;
 };
 
 type BulletinBoardProps = {
@@ -277,6 +283,9 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
                       {!item.isRead ? <span className={styles.unreadBadge}>UNREAD</span> : null}
                       {item.isPinned ? <span className={styles.pinBadge}>PINNED</span> : null}
                       {item.isArchived ? <span className={styles.archiveBadge}>ARCHIVED</span> : null}
+                      {item.attachments.length ? (
+                        <span className={styles.attachmentBadge}>FILES {item.attachments.length}</span>
+                      ) : null}
                     </div>
                     <span className={styles.date}>{formatReceivedAt(item.receivedAt)}</span>
                   </div>
@@ -327,6 +336,38 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
                           {renderLinkedText(paragraph)}
                         </p>
                       ))}
+
+                      {item.attachments.length ? (
+                        <section className={styles.attachmentSection}>
+                          <div className={styles.attachmentSectionHeader}>
+                            <h3 className={styles.attachmentSectionTitle}>첨부 파일</h3>
+                            <span className={styles.attachmentSectionMeta}>{item.attachments.length}개</span>
+                          </div>
+                          <div className={styles.attachmentList}>
+                            {item.attachments.map((attachment) => (
+                              <div key={attachment.id} className={styles.attachmentItem}>
+                                <div className={styles.attachmentText}>
+                                  <p className={styles.attachmentName}>{attachment.filename}</p>
+                                  <p className={styles.attachmentMeta}>{attachment.mimeType || "attachment"}</p>
+                                </div>
+                                <div className={styles.attachmentActions}>
+                                  <a
+                                    href={attachment.publicUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={styles.attachmentLink}
+                                  >
+                                    열기
+                                  </a>
+                                  <a href={attachment.publicUrl} download className={styles.attachmentLink}>
+                                    다운로드
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
 
                       {parsed.quoted.length ? (
                         <details className={styles.quoted}>

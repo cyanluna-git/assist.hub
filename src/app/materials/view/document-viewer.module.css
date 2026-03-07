@@ -146,6 +146,10 @@
   height: calc(100vh - 60px);
 }
 
+.summaryFocusLayout .docPane {
+  background: #f6f8fb;
+}
+
 .block {
   border-bottom: 1px solid var(--line-subtle);
   padding: 20px;
@@ -171,6 +175,12 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.blockActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .secondaryAction {
@@ -199,6 +209,83 @@
   color: var(--text-main);
   font-size: 14px;
   line-height: 1.65;
+}
+
+.summaryComposer {
+  display: grid;
+  gap: 10px;
+}
+
+.summaryHelper {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.summaryTextarea {
+  min-height: 180px;
+}
+
+.summaryActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summaryPreview {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-subtle);
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.summaryPreview :global(h1),
+.summaryPreview :global(h2),
+.summaryPreview :global(h3) {
+  color: var(--text-strong);
+}
+
+.summaryPreview :global(p:first-child) {
+  margin-top: 0;
+}
+
+.summaryFocusPane {
+  max-width: 940px;
+  margin: 0 auto;
+  min-height: 100%;
+  background: #fff;
+  padding: 44px 58px 56px;
+  color: var(--text-main);
+}
+
+.summaryFocusHead {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.summaryFocusTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.summaryFocusBody {
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.summaryFocusBody :global(h1),
+.summaryFocusBody :global(h2),
+.summaryFocusBody :global(h3) {
+  color: var(--text-strong);
+}
+
+.summaryFocusBody :global(p:first-child) {
+  margin-top: 0;
 }
 
 .empty {
@@ -523,6 +610,12 @@
     flex-direction: column;
   }
 
+  .blockActions {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .artifactRow {
     align-items: flex-start;
     flex-direction: column;
@@ -545,5 +638,18 @@
     max-width: 100%;
     padding: 20px 18px;
     font-size: 16px;
+  }
+
+  .summaryFocusPane {
+    padding: 28px 22px 36px;
+  }
+
+  .summaryFocusTitle {
+    font-size: 24px;
+  }
+
+  .summaryFocusBody {
+    font-size: 16px;
+    line-height: 1.8;
   }
 }

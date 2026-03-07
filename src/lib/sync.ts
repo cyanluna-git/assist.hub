@@ -3,9 +3,9 @@ import path from "node:path";
 import prisma from "./prisma";
 import { google } from "googleapis";
 import { buildGoogleOAuthClient } from "./google-auth";
+import { resolvePublicBackedStorage } from "./public-storage";
 import { runTrackedSync } from "./sync-state";
 
-const MATERIALS_DIR = path.join(process.cwd(), "public", "materials");
 export const COURSE_ID = "841669156744";
 export const COURSE_TITLE = "[2026-1 AI·전략경영] AI개론";
 
@@ -73,9 +73,14 @@ async function syncAssignmentsFromAPI() {
 async function syncLocalMaterials() {
   let syncedCount = 0;
   const categories = ["announcements", "assignments", "obsidian_notes"];
+  const storage = await resolvePublicBackedStorage({
+    envVar: "MATERIALS_STORAGE_ROOT",
+    publicSegment: "materials",
+    label: "Classroom 자료",
+  });
 
   for (const category of categories) {
-    const categoryPath = path.join(MATERIALS_DIR, category);
+    const categoryPath = path.join(storage.backingRoot, category);
     if (!fs.existsSync(categoryPath)) continue;
 
     const files = getAllFiles(categoryPath);
@@ -84,7 +89,8 @@ async function syncLocalMaterials() {
         continue;
       }
 
-      const relativeUrl = file.replace(path.join(process.cwd(), "public"), "");
+      const relativePath = path.relative(storage.backingRoot, file).split(path.sep).join("/");
+      const relativeUrl = `/materials/${relativePath}`;
       await prisma.material.upsert({
         where: { id: relativeUrl },
         update: {

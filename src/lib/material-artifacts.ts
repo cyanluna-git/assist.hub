@@ -59,6 +59,10 @@ export const MATERIAL_ARTIFACT_DEFINITIONS: readonly MaterialArtifactDefinition[
   },
 ] as const;
 
+export const MATERIAL_ARTIFACT_UPLOAD_DEFINITIONS = MATERIAL_ARTIFACT_DEFINITIONS.filter(
+  (definition) => definition.type !== "NOTEBOOKLM_SUMMARY",
+);
+
 const MATERIAL_ARTIFACT_DEFINITION_MAP = new Map(
   MATERIAL_ARTIFACT_DEFINITIONS.map((definition) => [definition.type, definition]),
 );

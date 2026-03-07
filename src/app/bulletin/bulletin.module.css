@@ -266,7 +266,8 @@
 .sourceBadge,
 .unreadBadge,
 .pinBadge,
-.archiveBadge {
+.archiveBadge,
+.attachmentBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -310,6 +311,12 @@
   background: rgba(89, 102, 122, 0.1);
   color: #516072;
   border: 1px solid rgba(89, 102, 122, 0.18);
+}
+
+.attachmentBadge {
+  background: rgba(41, 79, 149, 0.08);
+  color: #294f95;
+  border: 1px solid rgba(41, 79, 149, 0.16);
 }
 
 .date {
@@ -392,6 +399,87 @@
   margin-bottom: 0;
 }
 
+.attachmentSection {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.attachmentSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.attachmentSectionTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.attachmentSectionMeta {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.attachmentList {
+  display: grid;
+  gap: 8px;
+}
+
+.attachmentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.attachmentText {
+  min-width: 0;
+}
+
+.attachmentName {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.attachmentMeta {
+  margin: 4px 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.attachmentActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachmentLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .inlineLink {
   color: #0d5ea8;
   text-decoration: underline;
@@ -463,6 +551,11 @@
 
   .itemTop,
   .itemHeader {
+    align-items: flex-start;
+  }
+
+  .attachmentItem {
+    flex-direction: column;
     align-items: flex-start;
   }
 }

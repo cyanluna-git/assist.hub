@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import {
-  MATERIAL_ARTIFACT_DEFINITIONS,
+  MATERIAL_ARTIFACT_UPLOAD_DEFINITIONS,
   canPreviewMaterialArtifact,
   getMaterialArtifactAccept,
   getMaterialArtifactDefinition,
@@ -15,7 +15,7 @@ import {
   getMaterialArtifactPreviewKind,
   type MaterialArtifactType,
 } from "@/lib/material-artifacts";
-import { deleteMaterialArtifact, generateMaterialSummary, saveMaterialNote, uploadMaterialArtifact } from "./actions";
+import { deleteMaterialArtifact, saveMaterialNote, saveMaterialSummary, uploadMaterialArtifact } from "./actions";
 import styles from "./document-viewer.module.css";
 
 type ViewerMaterial = Material & { notes: Note[]; artifacts: MaterialArtifact[] };
@@ -29,18 +29,21 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const rootRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveVersionRef = useRef(0);
-  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<"document" | "summary" | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [summary, setSummary] = useState(material.notes?.[0]?.aiSummary || "");
+  const [persistedSummary, setPersistedSummary] = useState(material.notes?.[0]?.aiSummary || "");
+  const [isSummaryEditing, setIsSummaryEditing] = useState(!material.notes?.[0]?.aiSummary);
   const [noteContent, setNoteContent] = useState(material.notes?.[0]?.content || "");
   const [persistedNoteContent, setPersistedNoteContent] = useState(material.notes?.[0]?.content || "");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [summaryMeta, setSummaryMeta] = useState<{ model: string; reasoningEffort: string } | null>(null);
+  const [summarySaveState, setSummarySaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [summarySavedAt, setSummarySavedAt] = useState<string | null>(null);
   const [isSummaryPending, startSummaryTransition] = useTransition();
   const [artifacts, setArtifacts] = useState(material.artifacts || []);
-  const [artifactType, setArtifactType] = useState<MaterialArtifactType>("NOTEBOOKLM_SUMMARY");
+  const [artifactType, setArtifactType] = useState<MaterialArtifactType>("SLIDES");
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(material.artifacts?.[0]?.id ?? null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
@@ -49,6 +52,10 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const [isArtifactPreviewLoading, setIsArtifactPreviewLoading] = useState(false);
   const [isArtifactPending, startArtifactTransition] = useTransition();
   const isDirty = noteContent !== persistedNoteContent;
+  const isSummaryDirty = summary !== persistedSummary;
+  const isDocumentFocusMode = focusTarget === "document";
+  const isSummaryFocusMode = focusTarget === "summary";
+  const isAnyFocusMode = focusTarget !== null;
   const selectedArtifactDefinition = getMaterialArtifactDefinition(artifactType);
   const selectedArtifact = useMemo(
     () => artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? artifacts[0] ?? null,
@@ -183,6 +190,17 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
     return "자동 저장";
   }
 
+  function renderSummaryState() {
+    if (isSummaryEditing) return "편집 중";
+    if (summarySaveState === "saving") return "저장 중...";
+    if (isSummaryDirty) return "변경 있음";
+    if (summarySaveState === "saved" && summarySavedAt) {
+      return `저장됨 · ${new Date(summarySavedAt).toLocaleTimeString()}`;
+    }
+    if (summarySaveState === "error") return "저장 실패";
+    return persistedSummary ? "저장된 요약" : "아직 저장 전";
+  }
+
   function renderArtifactPreview() {
     if (!selectedArtifact) {
       return (
@@ -273,7 +291,10 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   }
 
   return (
-    <div ref={rootRef} className={`${styles.layout} ${isFocusMode ? styles.focusLayout : ""}`}>
+    <div
+      ref={rootRef}
+      className={`${styles.layout} ${isAnyFocusMode ? styles.focusLayout : ""} ${isSummaryFocusMode ? styles.summaryFocusLayout : ""}`}
+    >
       <header className={styles.header}>
         <div className={styles.titleWrap}>
           <span className={styles.tag}>{material.type.toUpperCase()}</span>
@@ -294,11 +315,11 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
             type="button"
             className={styles.actionButton}
             aria-label="Toggle focus mode"
-            aria-pressed={isFocusMode}
-            onClick={() => setIsFocusMode((prev) => !prev)}
+            aria-pressed={isDocumentFocusMode}
+            onClick={() => setFocusTarget((current) => (current === "document" ? null : "document"))}
           >
             <Focus size={16} />
-            <span>{isFocusMode ? "집중 모드 해제" : "집중 모드"}</span>
+            <span>{isDocumentFocusMode ? "집중 모드 해제" : "원문 집중 모드"}</span>
           </button>
 
           <Link href="/materials" className={styles.close} aria-label="Close viewer">
@@ -309,7 +330,21 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
 
       <div className={styles.split}>
         <div className={styles.docPane}>
-          {material.type === "pdf" ? (
+          {isSummaryFocusMode ? (
+            <article className={styles.summaryFocusPane}>
+              <div className={styles.summaryFocusHead}>
+                <span className={styles.tag}>SUMMARY</span>
+                <h3 className={styles.summaryFocusTitle}>{material.title}</h3>
+              </div>
+              <div className={styles.summaryFocusBody}>
+                {summary ? (
+                  <ReactMarkdown>{summary}</ReactMarkdown>
+                ) : (
+                  <p className={styles.empty}>저장된 요약이 없습니다. Summary 입력창에 붙여넣고 저장한 뒤 집중 읽기를 사용하세요.</p>
+                )}
+              </div>
+            </article>
+          ) : material.type === "pdf" ? (
             <iframe src={`${material.localUrl}#toolbar=0`} className={styles.pdf} title={material.title} />
           ) : (
             <div className={styles.markdown}>
@@ -485,7 +520,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                   value={artifactType}
                   onChange={(event) => setArtifactType(event.target.value as MaterialArtifactType)}
                 >
-                  {MATERIAL_ARTIFACT_DEFINITIONS.map((definition) => (
+                  {MATERIAL_ARTIFACT_UPLOAD_DEFINITIONS.map((definition) => (
                     <option key={definition.type} value={definition.type}>
                       {definition.label}
                     </option>
@@ -518,45 +553,86 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
           </section>
 
           <section className={styles.block}>
-            <div className={styles.blockHeader}>
-              <div className={styles.blockHead}>
-                <Sparkles size={15} />
-                <span>AI Summary</span>
+              <div className={styles.blockHeader}>
+                <div className={styles.blockHead}>
+                  <Sparkles size={15} />
+                  <span>Summary</span>
+                </div>
+                <div className={styles.blockActions}>
+                  <span className={styles.statusText}>{renderSummaryState()}</span>
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
+                    onClick={() => {
+                      setSummaryError(null);
+                      setSummary(persistedSummary);
+                      setIsSummaryEditing((current) => !current);
+                    }}
+                  >
+                    <Edit3 size={14} />
+                    {isSummaryEditing ? "편집 취소" : summary ? "요약 편집" : "요약 작성"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
+                    onClick={() => setFocusTarget((current) => (current === "summary" ? null : "summary"))}
+                  >
+                    <Focus size={14} />
+                    {isSummaryFocusMode ? "집중 읽기 해제" : "요약 집중 읽기"}
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                className={styles.secondaryAction}
-                disabled={isSummaryPending}
-                onClick={() => {
-                  setSummaryError(null);
-                  startSummaryTransition(async () => {
-                    try {
-                      const result = await generateMaterialSummary(material.id);
-                      setSummary(result.aiSummary);
-                      setSummaryMeta({
-                        model: result.model,
-                        reasoningEffort: result.reasoningEffort,
-                      });
-                    } catch {
-                      setSummaryError("Codex CLI 요약 생성에 실패했습니다.");
-                    }
-                  });
-                }}
-              >
-                {isSummaryPending ? "생성 중..." : summary ? "요약 다시 생성" : "요약 생성"}
-              </button>
+            <div className={styles.summaryComposer}>
+              <p className={styles.summaryHelper}>
+                NotebookLM이나 다른 도구에서 만든 요약을 여기 붙여넣고 저장하세요. Markdown 형식으로 정리해 넣으면 아래에서 그대로 렌더링됩니다.
+              </p>
+              {isSummaryEditing ? (
+                <>
+                  <textarea
+                    placeholder="논문 요약을 붙여넣으세요..."
+                    className={`${styles.textarea} ${styles.summaryTextarea}`}
+                    value={summary}
+                    onChange={(event) => {
+                      setSummary(event.target.value);
+                      if (summarySaveState === "saved") {
+                        setSummarySaveState("idle");
+                      }
+                    }}
+                  />
+                  <div className={styles.summaryActions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={isSummaryPending || !summary.trim()}
+                      onClick={() => {
+                        setSummaryError(null);
+                        startSummaryTransition(async () => {
+                          try {
+                            setSummarySaveState("saving");
+                            const result = await saveMaterialSummary(material.id, summary);
+                            setPersistedSummary(summary);
+                            setSummarySaveState("saved");
+                            setSummarySavedAt(result.updatedAt);
+                            setIsSummaryEditing(false);
+                          } catch (error) {
+                            setSummarySaveState("error");
+                            setSummaryError(error instanceof Error ? error.message : "요약 저장에 실패했습니다.");
+                          }
+                        });
+                      }}
+                    >
+                      {isSummaryPending ? "저장 중..." : "요약 저장"}
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </div>
-            <div className={styles.summary}>
+            <div className={styles.summaryPreview}>
               {summary ? (
                 <ReactMarkdown>{summary}</ReactMarkdown>
               ) : (
-                <p className={styles.empty}>아직 요약이 없습니다. 버튼을 누르면 Codex CLI가 한국어 요약을 생성합니다.</p>
+                <p className={styles.empty}>아직 저장된 요약이 없습니다. 위 입력창에 붙여넣고 저장하면 이 영역에서 바로 확인할 수 있습니다.</p>
               )}
-              {summaryMeta ? (
-                <p className={styles.metaText}>
-                  {summaryMeta.model} · {summaryMeta.reasoningEffort}
-                </p>
-              ) : null}
               {summaryError ? <p className={styles.errorText}>{summaryError}</p> : null}
             </div>
           </section>

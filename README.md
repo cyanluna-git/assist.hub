@@ -29,12 +29,13 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Artifact Storage
+## External Storage
 
-Artifact files can be moved out of the repo and backed by a cloud-synced folder while keeping the same `/material-artifacts/...` URLs.
+Classroom source files, uploaded artifacts, and Gmail attachments can be moved out of the repo and backed by cloud-synced folders while keeping the same public URLs.
 
 - Setup guide: [docs/artifact-storage.md](/Users/cyanluna-pro16/dev/assist.ai.mba/assist-hub/docs/artifact-storage.md)
 - Example environment variables: [.env.example](/Users/cyanluna-pro16/dev/assist.ai.mba/assist-hub/.env.example)
+- Local helper scripts: `npm run storage:apply-local`, `npm run storage:status`, `npm run storage:clear-local`
 
 ## Deploy on Vercel
 

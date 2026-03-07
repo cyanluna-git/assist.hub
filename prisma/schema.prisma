@@ -33,7 +33,7 @@ model Note {
   id          String   @id @default(uuid())
   materialId  String
   content     String   // 마크다운 형식의 텍스트
-  aiSummary   String?  // 기존 Codex 요약 경로용 텍스트. NotebookLM artifact는 MaterialArtifact로 분리 저장한다.
+  aiSummary   String?  // 문서별 수동 요약 입력용 Markdown 텍스트
   updatedAt   DateTime @updatedAt
   material    Material @relation(fields: [materialId], references: [id])
 }
@@ -41,7 +41,7 @@ model Note {
 model MaterialArtifact {
   id               String   @id @default(uuid())
   materialId       String
-  artifactType     String   // "NOTEBOOKLM_SUMMARY" | "SLIDES" | "INFOGRAPHIC" | "AUDIO_OVERVIEW" | "MINDMAP"
+  artifactType     String   // legacy "NOTEBOOKLM_SUMMARY" | "SLIDES" | "INFOGRAPHIC" | "AUDIO_OVERVIEW" | "MINDMAP"
   status           String   @default("PENDING") // "PENDING" | "RUNNING" | "SUCCESS" | "ERROR"
   sourceNotebookId String?  // NotebookLM notebook/studio identifier
   sourceArtifactId String?  // NotebookLM artifact identifier
@@ -88,9 +88,26 @@ model BulletinItem {
   isRead     Boolean  @default(false)
   isPinned   Boolean  @default(false)
   isArchived Boolean  @default(false)
+  attachmentsSyncedAt DateTime?
   receivedAt DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  attachments BulletinAttachment[]
+}
+
+model BulletinAttachment {
+  id                String       @id @default(uuid())
+  bulletinId        String
+  gmailAttachmentId String
+  filename          String
+  mimeType          String?
+  localPath         String
+  publicUrl         String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  bulletin          BulletinItem @relation(fields: [bulletinId], references: [id], onDelete: Cascade)
+
+  @@unique([bulletinId, gmailAttachmentId])
 }
 
 model SyncState {

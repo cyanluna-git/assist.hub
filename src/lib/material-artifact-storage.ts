@@ -1,6 +1,7 @@
 import path from "node:path";
-import { access, lstat, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import prisma from "./prisma";
+import { resolvePublicBackedStorage } from "./public-storage";
 import {
   MATERIAL_ARTIFACT_TYPES,
   getMaterialArtifactExtensions,
@@ -32,102 +33,6 @@ export function isSupportedArtifactType(value: string): value is MaterialArtifac
   return MATERIAL_ARTIFACT_TYPES.includes(value as MaterialArtifactType);
 }
 
-const ARTIFACT_PUBLIC_SEGMENT = "material-artifacts";
-
-type ArtifactStorageConfig = {
-  publicMountPath: string;
-  backingRoot: string;
-  usesExternalRoot: boolean;
-};
-
-function getArtifactPublicMountPath() {
-  return path.join(process.cwd(), "public", ARTIFACT_PUBLIC_SEGMENT);
-}
-
-function getConfiguredArtifactStorageRoot() {
-  const configuredRoot = process.env.ARTIFACT_STORAGE_ROOT?.trim();
-
-  if (!configuredRoot) {
-    return getArtifactPublicMountPath();
-  }
-
-  return path.isAbsolute(configuredRoot) ? configuredRoot : path.resolve(process.cwd(), configuredRoot);
-}
-
-async function ensureArtifactStorageRootExists(backingRoot: string, usesExternalRoot: boolean) {
-  if (!usesExternalRoot) {
-    await mkdir(backingRoot, { recursive: true });
-    return;
-  }
-
-  try {
-    await access(backingRoot);
-  } catch {
-    throw new Error(
-      [
-        "외부 artifact 저장 루트를 찾을 수 없습니다.",
-        `ARTIFACT_STORAGE_ROOT=${backingRoot}`,
-        "Google Drive 폴더를 먼저 만들고 symlink를 연결하세요.",
-      ].join(" "),
-    );
-  }
-}
-
-async function ensurePublicMountMatchesBackingRoot(publicMountPath: string, backingRoot: string) {
-  try {
-    await access(publicMountPath);
-  } catch {
-    throw new Error(
-      [
-        "public/material-artifacts 경로를 찾을 수 없습니다.",
-        "외부 저장소를 사용할 때는 public/material-artifacts를 backing folder로 연결한 symlink가 필요합니다.",
-      ].join(" "),
-    );
-  }
-
-  const [mountRealPath, backingRealPath] = await Promise.all([
-    realpath(publicMountPath),
-    realpath(backingRoot),
-  ]);
-
-  if (mountRealPath !== backingRealPath) {
-    let mountType = "directory";
-
-    try {
-      const stat = await lstat(publicMountPath);
-      mountType = stat.isSymbolicLink() ? "symlink" : "directory";
-    } catch {
-      mountType = "missing";
-    }
-
-    throw new Error(
-      [
-        "public/material-artifacts와 ARTIFACT_STORAGE_ROOT가 같은 위치를 가리켜야 합니다.",
-        `현재 mount=${mountRealPath} (${mountType}), root=${backingRealPath}`,
-        "권장: public/material-artifacts를 외부 저장 폴더로 symlink 연결하세요.",
-      ].join(" "),
-    );
-  }
-}
-
-async function resolveArtifactStorageConfig(): Promise<ArtifactStorageConfig> {
-  const publicMountPath = getArtifactPublicMountPath();
-  const backingRoot = getConfiguredArtifactStorageRoot();
-  const usesExternalRoot = backingRoot !== publicMountPath;
-
-  await ensureArtifactStorageRootExists(backingRoot, usesExternalRoot);
-
-  if (usesExternalRoot) {
-    await ensurePublicMountMatchesBackingRoot(publicMountPath, backingRoot);
-  }
-
-  return {
-    publicMountPath,
-    backingRoot,
-    usesExternalRoot,
-  };
-}
-
 export function validateMaterialArtifactFilename(artifactType: MaterialArtifactType, filename: string) {
   const extension = getArtifactExtension(filename);
   const allowedExtensions = getMaterialArtifactExtensions(artifactType);
@@ -142,7 +47,7 @@ export function validateMaterialArtifactFilename(artifactType: MaterialArtifactT
 export function buildArtifactPublicPath(materialId: string, artifactType: MaterialArtifactType, originalName: string) {
   const fileName = buildArtifactFileName(materialId, artifactType, originalName);
   const materialSlug = sanitizeSegment(path.basename(materialId, path.extname(materialId)) || "material");
-  return `/${ARTIFACT_PUBLIC_SEGMENT}/${materialSlug}/${artifactType.toLowerCase()}/${fileName}`;
+  return `/material-artifacts/${materialSlug}/${artifactType.toLowerCase()}/${fileName}`;
 }
 
 export async function saveMaterialArtifactFile(input: {
@@ -151,9 +56,13 @@ export async function saveMaterialArtifactFile(input: {
   originalName: string;
   buffer: Buffer;
 }) {
-  const storage = await resolveArtifactStorageConfig();
+  const storage = await resolvePublicBackedStorage({
+    envVar: "ARTIFACT_STORAGE_ROOT",
+    publicSegment: "material-artifacts",
+    label: "artifact",
+  });
   const publicPath = buildArtifactPublicPath(input.materialId, input.artifactType, input.originalName);
-  const absolutePath = path.join(storage.backingRoot, publicPath.replace(`/${ARTIFACT_PUBLIC_SEGMENT}/`, ""));
+  const absolutePath = path.join(storage.backingRoot, publicPath.replace("/material-artifacts/", ""));
 
   await mkdir(path.dirname(absolutePath), { recursive: true });
   await writeFile(absolutePath, input.buffer);
