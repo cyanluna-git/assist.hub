@@ -110,6 +110,7 @@
   height: 100%;
   overflow: auto;
   background: #e9edf2;
+  outline: none;
 }
 
 .pdfReaderHeader {
@@ -146,7 +147,43 @@
 .pdfReaderHeaderActions {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
+}
+
+.pdfReaderToolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdfReaderZoomValue {
+  min-width: 52px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.pdfReaderPageJump {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdfReaderPageInput {
+  width: 76px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line-subtle);
+  background: #fff;
+  color: var(--text-main);
+  font: inherit;
+}
+
+.pdfReaderPageInput:focus {
+  outline: 2px solid rgba(28, 83, 217, 0.18);
+  outline-offset: 2px;
 }
 
 .pdfReaderState {
@@ -160,7 +197,31 @@
 .pdfReaderPages {
   display: grid;
   gap: 18px;
-  padding: 20px 20px 48px;
+  padding: 18px 20px 48px;
+}
+
+.pdfReaderScrubber {
+  position: sticky;
+  top: 62px;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+  padding: 12px 20px 0;
+  background: linear-gradient(180deg, rgba(233, 237, 242, 0.96), rgba(233, 237, 242, 0.82));
+  backdrop-filter: blur(8px);
+}
+
+.pdfReaderScrubberInput {
+  width: 100%;
+}
+
+.pdfReaderShortcutHint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .pdfPage {
@@ -170,7 +231,8 @@
 }
 
 .pdfPageSurface {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -185,9 +247,8 @@
 }
 
 .pdfCanvas {
-  width: 100%;
+  width: auto;
   height: auto;
-  max-width: 100%;
   border: 1px solid rgba(15, 36, 64, 0.08);
   box-shadow: 0 18px 40px rgba(15, 36, 64, 0.12);
   background: #fff;
@@ -787,6 +848,25 @@
     min-height: 420px;
     border-right: 0;
     border-bottom: 1px solid var(--line-subtle);
+  }
+
+  .pdfReaderHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pdfReaderHeaderActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .pdfReaderToolbar,
+  .pdfReaderPageJump {
+    flex-wrap: wrap;
+  }
+
+  .pdfReaderScrubber {
+    top: 104px;
   }
 
   .headerActions .actionButton span {

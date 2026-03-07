@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Minus, Plus, RotateCcw } from "lucide-react";
 import styles from "./document-viewer.module.css";
 
 type PDFDocumentProxy = import("pdfjs-dist/types/src/pdf").PDFDocumentProxy;
@@ -17,6 +17,7 @@ type ReaderPersistedState = {
   page: number;
   offsetRatio: number;
   fitMode: "fit-width";
+  zoomScale: number;
   fingerprint: string | null;
 };
 
@@ -28,6 +29,9 @@ type PageMetric = {
 const STORAGE_PREFIX = "assist-hub:pdf-reader:";
 const PAGE_BUFFER = 2;
 const DEVICE_SCALE_CAP = 2;
+const ZOOM_MIN = 0.75;
+const ZOOM_MAX = 2;
+const ZOOM_STEP = 0.1;
 
 function getStorageKey(storageKey: string) {
   return `${STORAGE_PREFIX}${storageKey}`;
@@ -51,12 +55,12 @@ function buildPageWindow(centerPage: number, totalPages: number) {
 
 function readPersistedState(storageKey: string): ReaderPersistedState {
   if (typeof window === "undefined") {
-    return { page: 1, offsetRatio: 0, fitMode: "fit-width", fingerprint: null };
+    return { page: 1, offsetRatio: 0, fitMode: "fit-width", zoomScale: 1, fingerprint: null };
   }
 
   const raw = window.localStorage.getItem(getStorageKey(storageKey));
   if (!raw) {
-    return { page: 1, offsetRatio: 0, fitMode: "fit-width", fingerprint: null };
+    return { page: 1, offsetRatio: 0, fitMode: "fit-width", zoomScale: 1, fingerprint: null };
   }
 
   try {
@@ -65,10 +69,11 @@ function readPersistedState(storageKey: string): ReaderPersistedState {
       page: Number.isFinite(parsed.page) && parsed.page ? Number(parsed.page) : 1,
       offsetRatio: Number.isFinite(parsed.offsetRatio) ? clamp(Number(parsed.offsetRatio), 0, 1) : 0,
       fitMode: "fit-width",
+      zoomScale: Number.isFinite(parsed.zoomScale) ? clamp(Number(parsed.zoomScale), ZOOM_MIN, ZOOM_MAX) : 1,
       fingerprint: typeof parsed.fingerprint === "string" ? parsed.fingerprint : null,
     };
   } catch {
-    return { page: 1, offsetRatio: 0, fitMode: "fit-width", fingerprint: null };
+    return { page: 1, offsetRatio: 0, fitMode: "fit-width", zoomScale: 1, fingerprint: null };
   }
 }
 
@@ -186,6 +191,7 @@ function PdfCanvasPage({
 
 export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageJumpInputRef = useRef<HTMLInputElement>(null);
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const pageCacheRef = useRef<Map<number, Promise<PDFPageProxy>>>(new Map());
   const hasRestoredRef = useRef(false);
@@ -194,6 +200,7 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     page: 1,
     offsetRatio: 0,
     fitMode: "fit-width",
+    zoomScale: 1,
     fingerprint: null,
   });
   const containerSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -209,10 +216,12 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     page: 1,
     offsetRatio: 0,
     fitMode: "fit-width",
+    zoomScale: 1,
     fingerprint: null,
   });
-  const [contentWidth, setContentWidth] = useState(880);
+  const [baseContentWidth, setBaseContentWidth] = useState(880);
   const [layoutRestoreNonce, setLayoutRestoreNonce] = useState(0);
+  const [pageJumpValue, setPageJumpValue] = useState("1");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -236,21 +245,78 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
 
   const persistReaderPosition = useCallback(
     (page: number, offsetRatio: number) => {
-      const nextState = {
-        page,
-        offsetRatio: clamp(offsetRatio, 0, 1),
-        fitMode: "fit-width" as const,
-        fingerprint: readerState.fingerprint,
-      };
-      setReaderState(nextState);
-      writePersistedState(storageKey, nextState);
+      setReaderState((current) => {
+        const nextState = {
+          ...current,
+          page,
+          offsetRatio: clamp(offsetRatio, 0, 1),
+          fitMode: "fit-width" as const,
+        };
+        writePersistedState(storageKey, nextState);
+        return nextState;
+      });
     },
-    [readerState.fingerprint, storageKey],
+    [storageKey],
   );
 
   useEffect(() => {
     latestReaderStateRef.current = readerState;
   }, [readerState]);
+
+  useEffect(() => {
+    setPageJumpValue(String(currentPage));
+  }, [currentPage]);
+
+  const scheduleLayoutRestore = useCallback((passesLeft = 3) => {
+    pendingLayoutRestoreRef.current = {
+      nonce: Date.now(),
+      passesLeft,
+    };
+    setLayoutRestoreNonce((current) => current + 1);
+  }, []);
+
+  const jumpToPage = useCallback(
+    (requestedPage: number, offsetRatio = 0) => {
+      if (!totalPages) {
+        return;
+      }
+
+      const nextPage = clamp(Math.round(requestedPage), 1, totalPages);
+      const nextOffset = clamp(offsetRatio, 0, 1);
+      const container = containerRef.current;
+      const targetNode = pageRefs.current[nextPage];
+
+      setCurrentPage(nextPage);
+      setRenderWindow(buildPageWindow(nextPage, totalPages));
+      persistReaderPosition(nextPage, nextOffset);
+
+      if (container && targetNode) {
+        container.scrollTop = targetNode.offsetTop + targetNode.offsetHeight * nextOffset;
+      } else {
+        scheduleLayoutRestore(2);
+      }
+    },
+    [persistReaderPosition, scheduleLayoutRestore, totalPages],
+  );
+
+  const applyZoomScale = useCallback(
+    (nextZoomScale: number) => {
+      const normalizedZoom = clamp(Number(nextZoomScale.toFixed(2)), ZOOM_MIN, ZOOM_MAX);
+
+      setReaderState((current) => {
+        const nextState = {
+          ...current,
+          zoomScale: normalizedZoom,
+          fitMode: "fit-width" as const,
+        };
+        writePersistedState(storageKey, nextState);
+        return nextState;
+      });
+
+      scheduleLayoutRestore(4);
+    },
+    [scheduleLayoutRestore, storageKey],
+  );
 
   const recalculateViewportState = useCallback(() => {
     const container = containerRef.current;
@@ -328,7 +394,7 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
       const hasSizeChanged = previous.width !== nextWidth || previous.height !== nextHeight;
 
       containerSizeRef.current = { width: nextWidth, height: nextHeight };
-      setContentWidth(Math.max(Math.floor(entry.contentRect.width) - 40, 320));
+      setBaseContentWidth(Math.max(Math.floor(entry.contentRect.width) - 40, 320));
 
       if (hasRestoredRef.current && hasSizeChanged) {
         pendingLayoutRestoreRef.current = {
@@ -364,7 +430,7 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
         const fingerprint = documentProxy.fingerprints?.[0] ?? null;
         const effectivePersisted =
           persisted.fingerprint && fingerprint && persisted.fingerprint !== fingerprint
-            ? { page: 1, offsetRatio: 0, fitMode: "fit-width" as const, fingerprint }
+            ? { page: 1, offsetRatio: 0, fitMode: "fit-width" as const, zoomScale: 1, fingerprint }
             : { ...persisted, fingerprint };
 
         const firstPage = await documentProxy.getPage(effectivePersisted.page || 1);
@@ -414,7 +480,7 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     container.scrollTop = targetNode.offsetTop + targetNode.offsetHeight * readerState.offsetRatio;
     hasRestoredRef.current = true;
     recalculateViewportState();
-  }, [readerState, recalculateViewportState, totalPages, pageMetrics, contentWidth]);
+  }, [readerState, recalculateViewportState, totalPages, pageMetrics, baseContentWidth]);
 
   useEffect(() => {
     if (!totalPages || !hasRestoredRef.current) {
@@ -456,7 +522,7 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [contentWidth, layoutRestoreNonce, pageMetrics, recalculateViewportState, totalPages]);
+  }, [baseContentWidth, layoutRestoreNonce, pageMetrics, recalculateViewportState, totalPages]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -483,10 +549,79 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     };
   }, [recalculateViewportState, totalPages]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        applyZoomScale(readerState.zoomScale + ZOOM_STEP);
+        return;
+      }
+
+      if (event.key === "-") {
+        event.preventDefault();
+        applyZoomScale(readerState.zoomScale - ZOOM_STEP);
+        return;
+      }
+
+      if (event.key === "0") {
+        event.preventDefault();
+        applyZoomScale(1);
+        return;
+      }
+
+      if (event.key === "PageDown" || event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        jumpToPage(currentPage + 1, 0);
+        return;
+      }
+
+      if (event.key === "PageUp" || event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        jumpToPage(currentPage - 1, 0);
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "j") {
+        event.preventDefault();
+        container.scrollBy({ top: 96, behavior: "smooth" });
+        return;
+      }
+
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        container.scrollBy({ top: -96, behavior: "smooth" });
+        return;
+      }
+    };
+
+    container.addEventListener("keydown", handleKeyDown);
+    return () => {
+      container.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [applyZoomScale, currentPage, jumpToPage, readerState.zoomScale]);
+
   const pageNumbers = useMemo(
     () => Array.from({ length: totalPages }, (_, index) => index + 1),
     [totalPages],
   );
+  const renderWidth = Math.max(Math.round(baseContentWidth * readerState.zoomScale), 320);
+  const scrubberValue = totalPages ? currentPage : 1;
 
   if (error) {
     return (
@@ -506,13 +641,77 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
   }
 
   return (
-    <div ref={containerRef} className={styles.pdfReaderShell}>
+    <div
+      ref={containerRef}
+      className={styles.pdfReaderShell}
+      tabIndex={0}
+      onMouseDown={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest("button, a, input, textarea, select, label")) {
+          return;
+        }
+        containerRef.current?.focus();
+      }}
+    >
       <div className={styles.pdfReaderHeader}>
         <div className={styles.pdfReaderHeaderMeta}>
           <span className={styles.pdfReaderHeaderTitle}>{title}</span>
           <span>{totalPages ? `${currentPage} / ${totalPages} 페이지` : "PDF 준비 중"}</span>
         </div>
         <div className={styles.pdfReaderHeaderActions}>
+          <div className={styles.pdfReaderToolbar}>
+            <button
+              type="button"
+              className={styles.secondaryAction}
+              onClick={() => applyZoomScale(readerState.zoomScale - ZOOM_STEP)}
+              disabled={isLoading || readerState.zoomScale <= ZOOM_MIN}
+              title="축소 (-)"
+            >
+              <Minus size={14} />
+            </button>
+            <span className={styles.pdfReaderZoomValue}>{Math.round(readerState.zoomScale * 100)}%</span>
+            <button
+              type="button"
+              className={styles.secondaryAction}
+              onClick={() => applyZoomScale(readerState.zoomScale + ZOOM_STEP)}
+              disabled={isLoading || readerState.zoomScale >= ZOOM_MAX}
+              title="확대 (+)"
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryAction}
+              onClick={() => applyZoomScale(1)}
+              disabled={isLoading || Math.abs(readerState.zoomScale - 1) < 0.01}
+              title="100%로 재설정 (0)"
+            >
+              <RotateCcw size={14} />
+              100%
+            </button>
+          </div>
+          <form
+            className={styles.pdfReaderPageJump}
+            onSubmit={(event) => {
+              event.preventDefault();
+              jumpToPage(Number(pageJumpValue || currentPage), 0);
+              pageJumpInputRef.current?.blur();
+            }}
+          >
+            <input
+              ref={pageJumpInputRef}
+              type="number"
+              min={1}
+              max={Math.max(totalPages, 1)}
+              className={styles.pdfReaderPageInput}
+              value={pageJumpValue}
+              onChange={(event) => setPageJumpValue(event.target.value)}
+              aria-label="페이지 이동"
+            />
+            <button type="submit" className={styles.secondaryAction} disabled={isLoading || !totalPages}>
+              이동
+            </button>
+          </form>
           <a href={src} target="_blank" rel="noreferrer" className={styles.secondaryAction}>
             <ExternalLink size={14} />
             브라우저로 열기
@@ -525,50 +724,69 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
           <p className={styles.previewLoading}>PDF를 준비하는 중...</p>
         </div>
       ) : (
-        <div className={styles.pdfReaderPages}>
-          {pageNumbers.map((pageNumber) => {
-            const metric = pageMetrics[pageNumber];
-            const estimatedHeight = Math.ceil((metric?.height ?? contentWidth * defaultAspectRatio));
+        <>
+          <div className={styles.pdfReaderScrubber}>
+            <input
+              type="range"
+              min={1}
+              max={Math.max(totalPages, 1)}
+              step={1}
+              value={scrubberValue}
+              className={styles.pdfReaderScrubberInput}
+              onChange={(event) => jumpToPage(Number(event.target.value), 0)}
+              aria-label="페이지 스크러버"
+            />
+            <div className={styles.pdfReaderShortcutHint}>
+              <span>`+ / - / 0` 확대</span>
+              <span>`j / k` 스크롤</span>
+              <span>`n / p` 페이지 이동</span>
+            </div>
+          </div>
+          <div className={styles.pdfReaderPages}>
+            {pageNumbers.map((pageNumber) => {
+              const metric = pageMetrics[pageNumber];
+              const estimatedHeight = Math.ceil((metric?.height ?? renderWidth * defaultAspectRatio));
 
-            return (
-              <div
-                key={pageNumber}
-                ref={(node) => {
-                  pageRefs.current[pageNumber] = node;
-                }}
-                data-page-number={pageNumber}
-                className={styles.pdfPage}
-              >
-                <div className={styles.pdfPageLabel}>Page {pageNumber}</div>
-                <PdfCanvasPage
-                  pageNumber={pageNumber}
-                  pdfDocument={pdfDocument}
-                  renderWidth={contentWidth}
-                  estimatedHeight={estimatedHeight}
-                  shouldRender={renderWindow.has(pageNumber)}
-                  getPage={getPage}
-                  onMetric={(nextPageNumber, nextMetric) => {
-                    setPageMetrics((current) => {
-                      const existing = current[nextPageNumber];
-                      if (
-                        existing &&
-                        existing.width === nextMetric.width &&
-                        existing.height === nextMetric.height
-                      ) {
-                        return current;
-                      }
-
-                      return {
-                        ...current,
-                        [nextPageNumber]: nextMetric,
-                      };
-                    });
+              return (
+                <div
+                  key={pageNumber}
+                  ref={(node) => {
+                    pageRefs.current[pageNumber] = node;
                   }}
-                />
-              </div>
-            );
-          })}
-        </div>
+                  data-page-number={pageNumber}
+                  className={styles.pdfPage}
+                >
+                  <div className={styles.pdfPageLabel}>Page {pageNumber}</div>
+                  <PdfCanvasPage
+                    pageNumber={pageNumber}
+                    pdfDocument={pdfDocument}
+                    renderWidth={renderWidth}
+                    estimatedHeight={estimatedHeight}
+                    shouldRender={renderWindow.has(pageNumber)}
+                    getPage={getPage}
+                    onMetric={(nextPageNumber, nextMetric) => {
+                      setPageMetrics((current) => {
+                        const existing = current[nextPageNumber];
+                        if (
+                          existing &&
+                          existing.width === nextMetric.width &&
+                          existing.height === nextMetric.height
+                        ) {
+                          return current;
+                        }
+
+                        return {
+                          ...current,
+                          [nextPageNumber]: nextMetric,
+                        };
+                      });
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
