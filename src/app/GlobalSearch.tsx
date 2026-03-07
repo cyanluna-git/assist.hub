@@ -8,6 +8,7 @@ import styles from "./layout.module.css";
 
 type GlobalSearchProps = {
   items: GlobalSearchItem[];
+  compact?: boolean;
 };
 
 type SearchKind = GlobalSearchItem["kind"];
@@ -35,7 +36,7 @@ function scoreItem(item: GlobalSearchItem, query: string) {
   return 0;
 }
 
-export default function GlobalSearch({ items }: GlobalSearchProps) {
+export default function GlobalSearch({ items, compact = false }: GlobalSearchProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -130,10 +131,16 @@ export default function GlobalSearch({ items }: GlobalSearchProps) {
 
   return (
     <>
-      <button type="button" className={styles.searchTrigger} aria-label="Open command palette" onClick={openPalette}>
+      <button
+        type="button"
+        className={`${styles.searchTrigger} ${compact ? styles.searchTriggerCompact : ""}`}
+        aria-label="Open command palette"
+        onClick={openPalette}
+        title={compact ? "Quick Search" : undefined}
+      >
         <span className={styles.searchLeft}>
           <Search size={14} />
-          <span>Quick Search</span>
+          <span className={styles.searchTriggerLabel}>Quick Search</span>
         </span>
         <span className={styles.kbd}>⌘K</span>
       </button>

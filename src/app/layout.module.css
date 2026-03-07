@@ -8,9 +8,37 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  transition: padding 0.18s ease;
+}
+
+.sidebarTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.collapseButton {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sidebarCollapsed {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .brand {
+  flex: 1;
   padding: 0 8px 10px;
   border-bottom: 1px solid var(--line-subtle);
 }
@@ -85,6 +113,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.searchTriggerCompact {
+  min-height: 40px;
+}
+
+.searchTriggerLabel {
+  white-space: nowrap;
 }
 
 .kbd {
@@ -316,6 +352,64 @@
   margin-top: auto;
   border-top: 1px solid var(--line-subtle);
   padding-top: 12px;
+}
+
+.mainExpanded {
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+.pageContainerExpanded {
+  max-width: 1320px;
+}
+
+.navLinkCollapsed {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.navLinkCollapsed .navLeft {
+  gap: 0;
+}
+
+.sidebarCollapsed .brand {
+  padding: 0 0 2px;
+  border-bottom: 0;
+}
+
+.sidebarCollapsed .brandSub,
+.sidebarCollapsed .userName,
+.sidebarCollapsed .userHint,
+.sidebarCollapsed .navLabel,
+.sidebarCollapsed .badge,
+.sidebarCollapsed .searchTriggerLabel,
+.sidebarCollapsed .kbd {
+  display: none;
+}
+
+.sidebarCollapsed .brandTitle {
+  font-size: 0;
+}
+
+.sidebarCollapsed .brandTitle::before {
+  content: "a";
+  font-size: 28px;
+  line-height: 1;
+}
+
+.sidebarCollapsed .userCard {
+  padding: 8px 6px;
+}
+
+.sidebarCollapsed .userTop {
+  justify-content: center;
+}
+
+.sidebarCollapsed .searchTrigger {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 @media (max-width: 1024px) {

@@ -16,9 +16,10 @@ export type NavItem = {
 
 interface SidebarNavProps {
   items: NavItem[];
+  collapsed?: boolean;
 }
 
-export default function SidebarNav({ items }: SidebarNavProps) {
+export default function SidebarNav({ items, collapsed = false }: SidebarNavProps) {
   const pathname = usePathname();
   const iconMap = {
     dashboard: LayoutDashboard,
@@ -38,7 +39,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
           return (
             <li key={item.href}>
               {item.disabled ? (
-                <span className={styles.navLink} aria-disabled="true">
+                <span className={`${styles.navLink} ${collapsed ? styles.navLinkCollapsed : ""}`} aria-disabled="true">
                   <span className={styles.navLeft}>
                     <Icon size={18} />
                     <span className={styles.navLabel}>{item.label}</span>
@@ -48,8 +49,9 @@ export default function SidebarNav({ items }: SidebarNavProps) {
               ) : (
                 <Link
                   href={item.href}
-                  className={`${styles.navLink} ${isActive ? styles.navActive : ""}`}
+                  className={`${styles.navLink} ${isActive ? styles.navActive : ""} ${collapsed ? styles.navLinkCollapsed : ""}`}
                   aria-current={isActive ? "page" : undefined}
+                  title={collapsed ? item.label : undefined}
                 >
                   <span className={styles.navLeft}>
                     <Icon size={18} />
