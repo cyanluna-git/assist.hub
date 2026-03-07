@@ -45,3 +45,4 @@ next-env.d.ts
 # local db legacy files
 db.sqlite
 dev.db
+assist.db

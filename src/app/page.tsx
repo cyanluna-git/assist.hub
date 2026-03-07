@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { fetchWorkspaceProfile } from "@/lib/profile";
 import { listMaterialArtifactLabels } from "@/lib/material-artifacts";
 import { fetchUnifiedScheduleItems } from "@/lib/schedule";
 import { COURSE_ID, COURSE_TITLE } from "@/lib/sync";
@@ -29,7 +30,8 @@ type ActionMaterial = {
 };
 
 export default async function Dashboard() {
-  const [course, classroomSync, scheduleItems, unreadMaterials, materialsForSummary] = await Promise.all([
+  const [profile, course, classroomSync, scheduleItems, unreadMaterials, materialsForSummary] = await Promise.all([
+    fetchWorkspaceProfile(),
     prisma.course.findUnique({
       where: { id: COURSE_ID },
       include: {
@@ -105,7 +107,7 @@ export default async function Dashboard() {
       <header className="page-hero">
         <p className="page-kicker">Learning Console</p>
         <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">안녕하세요, 박근윤님. 지금 처리할 일정과 자료를 바로 실행하세요.</p>
+        <p className="page-subtitle">안녕하세요, {profile.displayName}님. 지금 처리할 일정과 자료를 바로 실행하세요.</p>
       </header>
 
       <section className={styles.hero}>

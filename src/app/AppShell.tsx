@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import type { GlobalSearchItem } from "@/lib/search";
+import type { WorkspaceProfileView } from "@/lib/profile";
 import ContinueReadingPanel from "./ContinueReadingPanel";
 import GlobalSearch from "./GlobalSearch";
 import SidebarNav, { type NavItem } from "./SidebarNav";
@@ -12,11 +13,12 @@ type AppShellProps = {
   children: React.ReactNode;
   navItems: NavItem[];
   searchItems: GlobalSearchItem[];
+  profile: WorkspaceProfileView;
 };
 
 const STORAGE_KEY = "assist-hub-sidebar-collapsed";
 
-export default function AppShell({ children, navItems, searchItems }: AppShellProps) {
+export default function AppShell({ children, navItems, searchItems, profile }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -60,8 +62,8 @@ export default function AppShell({ children, navItems, searchItems }: AppShellPr
 
         <section className={styles.userCard}>
           <div className={styles.userTop}>
-            <span className={styles.avatar}>P</span>
-            <span className={styles.userName}>박근윤</span>
+            <span className={styles.avatar}>{profile.avatarLabel}</span>
+            <span className={styles.userName}>{profile.displayName}</span>
           </div>
           <p className={styles.userHint}>이번 주 학습 흐름을 점검하세요.</p>
           <GlobalSearch items={searchItems} compact={collapsed} />

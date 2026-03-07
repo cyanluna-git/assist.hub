@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { fetchWorkspaceProfile } from "@/lib/profile";
 import { fetchGlobalSearchItems } from "@/lib/search";
 import AppShell from "./AppShell";
 import type { NavItem } from "./SidebarNav";
@@ -22,12 +23,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const searchItems = await fetchGlobalSearchItems();
+  const [searchItems, profile] = await Promise.all([fetchGlobalSearchItems(), fetchWorkspaceProfile()]);
 
   return (
     <html lang="ko">
       <body>
-        <AppShell navItems={NAV_ITEMS} searchItems={searchItems}>
+        <AppShell navItems={NAV_ITEMS} searchItems={searchItems} profile={profile}>
           {children}
         </AppShell>
       </body>
