@@ -9,6 +9,7 @@
     "lint": "eslint",
     "prisma:generate": "prisma generate",
     "setup:init": "bash ./init.sh",
+    "db:backup": "node ./scripts/db/backup-assist-db.mjs",
     "storage:apply-local": "bash scripts/storage/apply-local-mounts.sh",
     "storage:clear-local": "bash scripts/storage/clear-local-mounts.sh",
     "storage:status": "bash scripts/storage/storage-status.sh",

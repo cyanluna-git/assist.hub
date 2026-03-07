@@ -15,6 +15,7 @@ DRIVE_BASE_ROOT="${ASSIST_SETUP_DRIVE_BASE_ROOT:-}"
 MATERIALS_ROOT="${ASSIST_SETUP_MATERIALS_ROOT:-}"
 ARTIFACT_ROOT="${ASSIST_SETUP_ARTIFACT_ROOT:-}"
 GMAIL_ROOT="${ASSIST_SETUP_GMAIL_ROOT:-}"
+DB_BACKUP_ROOT="${ASSIST_SETUP_DB_BACKUP_ROOT:-}"
 FORCE_OVERWRITE="${ASSIST_SETUP_FORCE:-0}"
 SKIP_INSTALL="${ASSIST_SETUP_SKIP_INSTALL:-0}"
 NONINTERACTIVE="${ASSIST_SETUP_NONINTERACTIVE:-0}"
@@ -37,6 +38,7 @@ Environment overrides:
   ASSIST_SETUP_MATERIALS_ROOT
   ASSIST_SETUP_ARTIFACT_ROOT
   ASSIST_SETUP_GMAIL_ROOT
+  ASSIST_SETUP_DB_BACKUP_ROOT
   ASSIST_SETUP_DATABASE_URL
   ASSIST_SETUP_ENV_FILE
   ASSIST_SETUP_FORCE=1
@@ -45,6 +47,7 @@ Environment overrides:
 
 Notes:
   - This script writes a local .env and seeds WorkspaceProfile into assist.db.
+  - If DB_BACKUP_ROOT is configured, `npm run db:backup` will write timestamped SQLite snapshots there.
   - Google Classroom / Gmail sync is optional and depends on ../ops credentials.
 EOF
 }
@@ -274,6 +277,12 @@ resolve_storage_roots() {
       fail "Unsupported storage mode: $STORAGE_MODE. Use local, drive, or custom."
       ;;
   esac
+
+  if [ -z "$DB_BACKUP_ROOT" ] && [ "$STORAGE_MODE" = "drive" ]; then
+    DB_BACKUP_ROOT="$DRIVE_BASE_ROOT/assist_hub_db_backups"
+  fi
+
+  DB_BACKUP_ROOT="$(normalize_storage_root "SQLite backup root" "$DB_BACKUP_ROOT")"
 }
 
 codex_cli_readiness() {
@@ -319,6 +328,7 @@ show_setup_summary() {
   local materials_root="$2"
   local artifact_root="$3"
   local gmail_root="$4"
+  local db_backup_root="$5"
 
   echo
   echo "Setup summary:"
@@ -328,6 +338,7 @@ show_setup_summary() {
   echo "  - storage mode: $STORAGE_MODE"
   echo "  - env file: $ENV_FILE"
   echo "  - database URL: $database_url"
+  echo "  - database backup root: ${db_backup_root:-disabled}"
   echo "  - materials root: ${materials_root:-repo-local public/materials}"
   echo "  - artifacts root: ${artifact_root:-repo-local public/material-artifacts}"
   echo "  - Gmail attachments root: ${gmail_root:-repo-local public/gmail-attachments}"
@@ -353,12 +364,14 @@ preflight_checks() {
 
 write_env_file() {
   local database_url="$1"
-  local materials_root="$2"
-  local artifact_root="$3"
-  local gmail_root="$4"
+  local db_backup_root="$2"
+  local materials_root="$3"
+  local artifact_root="$4"
+  local gmail_root="$5"
 
   cat > "$ENV_FILE" <<EOF
 DATABASE_URL="$database_url"
+DB_BACKUP_ROOT="$db_backup_root"
 
 # Optional: use external backing folders while keeping the same public URLs.
 # Each public/* mount should point at the same real path, typically via symlink.
@@ -447,11 +460,15 @@ main() {
 
   AVATAR_LABEL="$(normalize_avatar_label "$DISPLAY_NAME" "$AVATAR_LABEL")"
   resolve_storage_roots
+  if [ "$NONINTERACTIVE" != "1" ] && [ -z "${ASSIST_SETUP_DB_BACKUP_ROOT:-}" ]; then
+    DB_BACKUP_ROOT="$(prompt_optional "SQLite backup root (optional; leave blank to disable)" "$DB_BACKUP_ROOT")"
+    DB_BACKUP_ROOT="$(normalize_storage_root "SQLite backup root" "$DB_BACKUP_ROOT")"
+  fi
 
   ensure_safe_env_write
-  show_setup_summary "$DEFAULT_DATABASE_URL" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT"
+  show_setup_summary "$DEFAULT_DATABASE_URL" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT" "$DB_BACKUP_ROOT"
   confirm_continue "Continue with this setup?"
-  write_env_file "$DEFAULT_DATABASE_URL" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT"
+  write_env_file "$DEFAULT_DATABASE_URL" "$DB_BACKUP_ROOT" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT"
 
   run_step "dependency install" maybe_install_dependencies
 
@@ -472,8 +489,9 @@ main() {
   echo "Next steps:"
   echo "1. Run: npm run dev"
   echo "2. If you need Classroom/Gmail sync, put credentials.json in ../ops and run: python3 ../ops/setup_classroom.py"
-  echo "3. If you use external storage roots, verify them with: npm run storage:status"
-  echo "4. If you want Summary > MD로 폴리싱, make sure Codex CLI is installed and logged in: codex login"
+  echo "3. If DB_BACKUP_ROOT is configured, create a SQLite snapshot any time with: npm run db:backup"
+  echo "4. If you use external storage roots, verify them with: npm run storage:status"
+  echo "5. If you want Summary > MD로 폴리싱, make sure Codex CLI is installed and logged in: codex login"
 }
 
 main "$@"

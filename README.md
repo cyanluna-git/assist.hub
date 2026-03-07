@@ -234,6 +234,7 @@ Minimum local setup:
 
 ```bash
 DATABASE_URL="file:./assist.db"
+DB_BACKUP_ROOT=""
 ```
 
 Option A: keep everything inside the repo:
@@ -247,6 +248,7 @@ GMAIL_ATTACHMENT_STORAGE_ROOT=""
 Option B: keep large files in a Google Drive-backed folder:
 
 ```bash
+DB_BACKUP_ROOT="$HOME/Library/CloudStorage/GoogleDrive-your-account/My Drive/01_Project/dev_blob/assist_hub_db_backups"
 MATERIALS_STORAGE_ROOT="$HOME/Library/CloudStorage/GoogleDrive-your-account/My Drive/01_Project/dev_blob/assist_hub_classroom_materials"
 ARTIFACT_STORAGE_ROOT="$HOME/Library/CloudStorage/GoogleDrive-your-account/My Drive/01_Project/dev_blob/assist_hub_artifacts"
 GMAIL_ATTACHMENT_STORAGE_ROOT="$HOME/Library/CloudStorage/GoogleDrive-your-account/My Drive/01_Project/dev_blob/assist_hub_gmail_attachments"
@@ -255,12 +257,13 @@ GMAIL_ATTACHMENT_STORAGE_ROOT="$HOME/Library/CloudStorage/GoogleDrive-your-accou
 Option C: use any local folder outside the repo:
 
 ```bash
+DB_BACKUP_ROOT="$HOME/dev_blob/assist_hub_db_backups"
 MATERIALS_STORAGE_ROOT="$HOME/dev_blob/assist_hub_classroom_materials"
 ARTIFACT_STORAGE_ROOT="$HOME/dev_blob/assist_hub_artifacts"
 GMAIL_ATTACHMENT_STORAGE_ROOT="$HOME/dev_blob/assist_hub_gmail_attachments"
 ```
 
-See [`.env.example`](./.env.example) and [`docs/artifact-storage.md`](./docs/artifact-storage.md).
+See [`.env.example`](./.env.example), [`docs/artifact-storage.md`](./docs/artifact-storage.md), and [`docs/db-backups.md`](./docs/db-backups.md).
 
 ### 3. Create the local DB schema
 
@@ -290,6 +293,7 @@ npm run dev
 npm run build
 npm run lint
 npm run setup:init
+npm run db:backup
 npm run storage:apply-local
 npm run storage:status
 npm run storage:clear-local
@@ -356,7 +360,7 @@ Use this when:
 Behavior:
 
 - `init.sh` asks for one Google Drive base folder
-- the app derives three child folders automatically
+- the app derives four child folders automatically
 - `npm run storage:apply-local` wires `public/*` mounts to those real folders
 
 Recommended base:
@@ -367,6 +371,7 @@ $HOME/Library/CloudStorage/GoogleDrive-your-account/My Drive/01_Project/dev_blob
 
 Derived folders:
 
+- `assist_hub_db_backups`
 - `assist_hub_classroom_materials`
 - `assist_hub_artifacts`
 - `assist_hub_gmail_attachments`
@@ -398,6 +403,7 @@ Use this table as the operating model for the project.
 | first-time setup | `./init.sh` | creates `.env`, DB, profile, storage config |
 | start app | `npm run dev` | launches Next.js on `localhost:5103` |
 | validate app | `npm run lint` / `npm run build` | code quality and production build |
+| snapshot local DB | `npm run db:backup` | writes timestamped SQLite backups to `DB_BACKUP_ROOT` |
 | inspect storage mounts | `npm run storage:status` | checks real paths and symlink state |
 | apply external mounts | `npm run storage:apply-local` | links `public/*` to configured roots |
 | clear external mounts | `npm run storage:clear-local` | returns to repo-local folders |
@@ -431,6 +437,18 @@ Database file:
 
 Live DB stays local by default. Large binary assets should live in external storage roots, not in the DB.
 
+If you want cloud-backed DB protection without running the live SQLite file from a sync folder, set:
+
+- `DB_BACKUP_ROOT`
+
+Then run:
+
+```bash
+npm run db:backup
+```
+
+This creates timestamped snapshots and is the recommended way to keep SQLite backups in Google Drive Desktop or another synced folder.
+
 ## External File Storage
 
 The app can keep browser URLs stable while moving real files outside the repo.
@@ -447,6 +465,7 @@ Supported file families:
 Recommended documentation:
 
 - [artifact storage guide](./docs/artifact-storage.md)
+- [database backup guide](./docs/db-backups.md)
 - [ops workflow](../ops/README.md)
 
 If you are using Google Drive-backed folders locally, use:
