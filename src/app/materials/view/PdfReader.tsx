@@ -190,6 +190,14 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
   const pageCacheRef = useRef<Map<number, Promise<PDFPageProxy>>>(new Map());
   const hasRestoredRef = useRef(false);
   const scrollFrameRef = useRef<number | null>(null);
+  const latestReaderStateRef = useRef<ReaderPersistedState>({
+    page: 1,
+    offsetRatio: 0,
+    fitMode: "fit-width",
+    fingerprint: null,
+  });
+  const containerSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+  const pendingLayoutRestoreRef = useRef<{ nonce: number; passesLeft: number } | null>(null);
 
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [totalPages, setTotalPages] = useState(0);
@@ -204,6 +212,7 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     fingerprint: null,
   });
   const [contentWidth, setContentWidth] = useState(880);
+  const [layoutRestoreNonce, setLayoutRestoreNonce] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,6 +247,10 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     },
     [readerState.fingerprint, storageKey],
   );
+
+  useEffect(() => {
+    latestReaderStateRef.current = readerState;
+  }, [readerState]);
 
   const recalculateViewportState = useCallback(() => {
     const container = containerRef.current;
@@ -309,7 +322,21 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
         return;
       }
 
+      const nextWidth = Math.floor(entry.contentRect.width);
+      const nextHeight = Math.floor(entry.contentRect.height);
+      const previous = containerSizeRef.current;
+      const hasSizeChanged = previous.width !== nextWidth || previous.height !== nextHeight;
+
+      containerSizeRef.current = { width: nextWidth, height: nextHeight };
       setContentWidth(Math.max(Math.floor(entry.contentRect.width) - 40, 320));
+
+      if (hasRestoredRef.current && hasSizeChanged) {
+        pendingLayoutRestoreRef.current = {
+          nonce: Date.now(),
+          passesLeft: 3,
+        };
+        setLayoutRestoreNonce((current) => current + 1);
+      }
     });
 
     observer.observe(container);
@@ -388,6 +415,48 @@ export default function PdfReader({ src, title, storageKey }: PdfReaderProps) {
     hasRestoredRef.current = true;
     recalculateViewportState();
   }, [readerState, recalculateViewportState, totalPages, pageMetrics, contentWidth]);
+
+  useEffect(() => {
+    if (!totalPages || !hasRestoredRef.current) {
+      return;
+    }
+
+    const pending = pendingLayoutRestoreRef.current;
+    if (!pending || pending.passesLeft <= 0) {
+      return;
+    }
+
+    const container = containerRef.current;
+    const targetState = latestReaderStateRef.current;
+    const targetNode = pageRefs.current[targetState.page];
+
+    if (!container || !targetNode) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const refreshedTargetNode = pageRefs.current[targetState.page];
+      if (!refreshedTargetNode) {
+        return;
+      }
+
+      container.scrollTop =
+        refreshedTargetNode.offsetTop + refreshedTargetNode.offsetHeight * targetState.offsetRatio;
+      pending.passesLeft -= 1;
+
+      if (pending.passesLeft > 0) {
+        setLayoutRestoreNonce((current) => current + 1);
+      } else {
+        pendingLayoutRestoreRef.current = null;
+      }
+
+      recalculateViewportState();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [contentWidth, layoutRestoreNonce, pageMetrics, recalculateViewportState, totalPages]);
 
   useEffect(() => {
     const container = containerRef.current;
