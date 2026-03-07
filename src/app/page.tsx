@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { syncClassroomDataAction } from "./dashboard-actions";
+import DashboardContinueReading from "./DashboardContinueReading";
 import styles from "./dashboard.module.css";
 
 type ActionMaterial = {
@@ -184,6 +185,8 @@ export default async function Dashboard() {
       </section>
 
       <section className={styles.actionGrid}>
+        <DashboardContinueReading />
+
         <article className={`card ${styles.section}`}>
           <div className={styles.sectionHeader}>
             <div>

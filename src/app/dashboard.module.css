@@ -283,6 +283,44 @@
   background: var(--bg-soft);
 }
 
+.resumeRow {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+
+.resumeIndex {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(13, 94, 168, 0.1);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.resumeCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .actionIconWrap {
   width: 34px;
   height: 34px;
@@ -496,5 +534,13 @@
 
   .courseTitle {
     font-size: 22px;
+  }
+
+  .resumeRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .resumeIndex {
+    display: none;
   }
 }
