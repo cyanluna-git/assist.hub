@@ -10,6 +10,8 @@ DEFAULT_DATABASE_URL="${ASSIST_SETUP_DATABASE_URL:-file:./assist.db}"
 DISPLAY_NAME="${ASSIST_SETUP_NAME:-}"
 STUDENT_ID="${ASSIST_SETUP_STUDENT_ID:-}"
 AVATAR_LABEL="${ASSIST_SETUP_AVATAR_LABEL:-}"
+STORAGE_MODE="${ASSIST_SETUP_STORAGE_MODE:-}"
+DRIVE_BASE_ROOT="${ASSIST_SETUP_DRIVE_BASE_ROOT:-}"
 MATERIALS_ROOT="${ASSIST_SETUP_MATERIALS_ROOT:-}"
 ARTIFACT_ROOT="${ASSIST_SETUP_ARTIFACT_ROOT:-}"
 GMAIL_ROOT="${ASSIST_SETUP_GMAIL_ROOT:-}"
@@ -30,6 +32,8 @@ Environment overrides:
   ASSIST_SETUP_NAME
   ASSIST_SETUP_STUDENT_ID
   ASSIST_SETUP_AVATAR_LABEL
+  ASSIST_SETUP_STORAGE_MODE=local|drive|custom
+  ASSIST_SETUP_DRIVE_BASE_ROOT
   ASSIST_SETUP_MATERIALS_ROOT
   ASSIST_SETUP_ARTIFACT_ROOT
   ASSIST_SETUP_GMAIL_ROOT
@@ -168,6 +172,35 @@ prompt_optional() {
   printf '%s' "$answer"
 }
 
+prompt_choice() {
+  local label="$1"
+  local current="$2"
+  shift 2
+  local options=("$@")
+
+  if [ -n "$current" ]; then
+    printf '%s' "$current"
+    return
+  fi
+
+  if [ "$NONINTERACTIVE" = "1" ]; then
+    fail "Missing required setup choice: $label. Provide it through ASSIST_SETUP_* environment variables in non-interactive mode."
+  fi
+
+  local answer=""
+  while :; do
+    printf "%s [%s]: " "$label" "$(IFS=/; echo "${options[*]}")"
+    IFS= read -r answer
+    for option in "${options[@]}"; do
+      if [ "$answer" = "$option" ]; then
+        printf '%s' "$answer"
+        return
+      fi
+    done
+    echo "Choose one of: ${options[*]}"
+  done
+}
+
 ensure_safe_env_write() {
   if [ -f "$ENV_FILE" ] && [ "$FORCE_OVERWRITE" != "1" ]; then
     if [ "$NONINTERACTIVE" = "1" ]; then
@@ -215,6 +248,42 @@ normalize_storage_root() {
   printf '%s' "$expanded"
 }
 
+resolve_storage_roots() {
+  case "$STORAGE_MODE" in
+    local)
+      MATERIALS_ROOT=""
+      ARTIFACT_ROOT=""
+      GMAIL_ROOT=""
+      ;;
+    drive)
+      DRIVE_BASE_ROOT="$(prompt_required "Google Drive base folder (example: $HOME/Library/CloudStorage/GoogleDrive-your-account/My Drive/01_Project/dev_blob)" "$DRIVE_BASE_ROOT")"
+      DRIVE_BASE_ROOT="$(normalize_storage_root "Google Drive base folder" "$DRIVE_BASE_ROOT")"
+      MATERIALS_ROOT="$DRIVE_BASE_ROOT/assist_hub_classroom_materials"
+      ARTIFACT_ROOT="$DRIVE_BASE_ROOT/assist_hub_artifacts"
+      GMAIL_ROOT="$DRIVE_BASE_ROOT/assist_hub_gmail_attachments"
+      ;;
+    custom)
+      MATERIALS_ROOT="$(prompt_optional "Custom materials storage root" "$MATERIALS_ROOT")"
+      ARTIFACT_ROOT="$(prompt_optional "Custom artifact storage root" "$ARTIFACT_ROOT")"
+      GMAIL_ROOT="$(prompt_optional "Custom Gmail attachment storage root" "$GMAIL_ROOT")"
+      MATERIALS_ROOT="$(normalize_storage_root "Materials storage root" "$MATERIALS_ROOT")"
+      ARTIFACT_ROOT="$(normalize_storage_root "Artifact storage root" "$ARTIFACT_ROOT")"
+      GMAIL_ROOT="$(normalize_storage_root "Gmail attachment storage root" "$GMAIL_ROOT")"
+      ;;
+    *)
+      fail "Unsupported storage mode: $STORAGE_MODE. Use local, drive, or custom."
+      ;;
+  esac
+}
+
+codex_cli_readiness() {
+  if command -v codex >/dev/null 2>&1; then
+    echo "Codex CLI: ready"
+  else
+    echo "Codex CLI: missing (required only for Summary > MD로 폴리싱)"
+  fi
+}
+
 google_sync_readiness() {
   local setup_script="$OPS_DIR/setup_classroom.py"
   local credentials_path="$OPS_DIR/credentials.json"
@@ -256,12 +325,14 @@ show_setup_summary() {
   echo "  - display name: $DISPLAY_NAME"
   echo "  - student ID: $STUDENT_ID"
   echo "  - avatar label: $AVATAR_LABEL"
+  echo "  - storage mode: $STORAGE_MODE"
   echo "  - env file: $ENV_FILE"
   echo "  - database URL: $database_url"
   echo "  - materials root: ${materials_root:-repo-local public/materials}"
   echo "  - artifacts root: ${artifact_root:-repo-local public/material-artifacts}"
   echo "  - Gmail attachments root: ${gmail_root:-repo-local public/gmail-attachments}"
   google_sync_readiness
+  codex_cli_readiness
   echo
 }
 
@@ -372,14 +443,10 @@ main() {
   DISPLAY_NAME="$(prompt_required "Display name" "$DISPLAY_NAME")"
   STUDENT_ID="$(prompt_required "Student ID" "$STUDENT_ID")"
   AVATAR_LABEL="$(prompt_optional "Avatar label (default: first character of your name)" "$AVATAR_LABEL")"
-  MATERIALS_ROOT="$(prompt_optional "External materials storage root (leave blank to keep repo-local files)" "$MATERIALS_ROOT")"
-  ARTIFACT_ROOT="$(prompt_optional "External artifact storage root (leave blank to keep repo-local files)" "$ARTIFACT_ROOT")"
-  GMAIL_ROOT="$(prompt_optional "External Gmail attachment storage root (leave blank to keep repo-local files)" "$GMAIL_ROOT")"
+  STORAGE_MODE="$(prompt_choice "Storage mode" "$STORAGE_MODE" local drive custom)"
 
   AVATAR_LABEL="$(normalize_avatar_label "$DISPLAY_NAME" "$AVATAR_LABEL")"
-  MATERIALS_ROOT="$(normalize_storage_root "Materials storage root" "$MATERIALS_ROOT")"
-  ARTIFACT_ROOT="$(normalize_storage_root "Artifact storage root" "$ARTIFACT_ROOT")"
-  GMAIL_ROOT="$(normalize_storage_root "Gmail attachment storage root" "$GMAIL_ROOT")"
+  resolve_storage_roots
 
   ensure_safe_env_write
   show_setup_summary "$DEFAULT_DATABASE_URL" "$MATERIALS_ROOT" "$ARTIFACT_ROOT" "$GMAIL_ROOT"
@@ -406,6 +473,7 @@ main() {
   echo "1. Run: npm run dev"
   echo "2. If you need Classroom/Gmail sync, put credentials.json in ../ops and run: python3 ../ops/setup_classroom.py"
   echo "3. If you use external storage roots, verify them with: npm run storage:status"
+  echo "4. If you want Summary > MD로 폴리싱, make sure Codex CLI is installed and logged in: codex login"
 }
 
 main "$@"
