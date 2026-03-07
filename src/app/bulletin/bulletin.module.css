@@ -431,9 +431,9 @@
 }
 
 .attachmentItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto;
+  align-items: start;
   gap: 14px;
   padding: 12px 14px;
   border: 1px solid var(--line-subtle);
@@ -463,6 +463,59 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.attachmentPreviewWrap {
+  min-width: 0;
+}
+
+.attachmentPreviewImageShell,
+.attachmentPreviewFallback {
+  width: 100%;
+  border: 1px solid var(--line-subtle);
+  border-radius: 14px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.attachmentPreviewImageShell {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attachmentPreviewImage {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.attachmentPreviewFrame {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.attachmentPreviewFallback {
+  padding: 18px;
+}
+
+.attachmentPreviewTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.attachmentPreviewText {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .attachmentLink {
@@ -555,7 +608,6 @@
   }
 
   .attachmentItem {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
   }
 }

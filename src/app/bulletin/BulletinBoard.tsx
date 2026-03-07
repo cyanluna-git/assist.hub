@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { Archive, BookOpenCheck, ChevronDown, Inbox, MailOpen, Pin, Search } from "lucide-react";
 import { toggleBulletinArchiveAction, toggleBulletinPinAction, toggleBulletinReadAction } from "./actions";
 import styles from "./bulletin.module.css";
@@ -30,6 +31,22 @@ type BulletinBoardProps = {
 type SourceFilter = "ALL" | "SMS" | "GMAIL";
 type DateFilter = "ALL" | "7D" | "30D" | "90D";
 type ViewMode = "ACTIVE" | "UNREAD" | "ARCHIVED" | "ALL";
+type AttachmentPreviewKind = "image" | "pdf" | "unsupported";
+
+function getAttachmentPreviewKind(attachment: BulletinItemView["attachments"][number]): AttachmentPreviewKind {
+  const mimeType = attachment.mimeType?.toLowerCase() ?? "";
+  const publicUrl = attachment.publicUrl.toLowerCase();
+
+  if (mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(publicUrl)) {
+    return "image";
+  }
+
+  if (mimeType === "application/pdf" || publicUrl.endsWith(".pdf")) {
+    return "pdf";
+  }
+
+  return "unsupported";
+}
 
 function normalizeParagraphs(input: string) {
   return input
@@ -142,6 +159,7 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
   const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
   const [viewMode, setViewMode] = useState<ViewMode>("ACTIVE");
   const [keyword, setKeyword] = useState("");
+  const [brokenPreviewIds, setBrokenPreviewIds] = useState<Record<string, boolean>>({});
 
   const filteredItems = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
@@ -349,6 +367,57 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
                                 <div className={styles.attachmentText}>
                                   <p className={styles.attachmentName}>{attachment.filename}</p>
                                   <p className={styles.attachmentMeta}>{attachment.mimeType || "attachment"}</p>
+                                </div>
+                                <div className={styles.attachmentPreviewWrap}>
+                                  {(() => {
+                                    const previewKind = getAttachmentPreviewKind(attachment);
+                                    const isBroken = brokenPreviewIds[attachment.id];
+
+                                    if (isBroken || previewKind === "unsupported") {
+                                      return (
+                                        <div className={styles.attachmentPreviewFallback}>
+                                          <p className={styles.attachmentPreviewTitle}>미리보기를 지원하지 않는 형식입니다.</p>
+                                          <p className={styles.attachmentPreviewText}>
+                                            브라우저 안에서는 직접 보여줄 수 없어 `열기` 또는 `다운로드`를 사용해야 합니다.
+                                          </p>
+                                        </div>
+                                      );
+                                    }
+
+                                    if (previewKind === "image") {
+                                      return (
+                                        <div className={styles.attachmentPreviewImageShell}>
+                                          <Image
+                                            src={attachment.publicUrl}
+                                            alt={attachment.filename}
+                                            width={1600}
+                                            height={1200}
+                                            className={styles.attachmentPreviewImage}
+                                            onError={() =>
+                                              setBrokenPreviewIds((current) => ({
+                                                ...current,
+                                                [attachment.id]: true,
+                                              }))
+                                            }
+                                          />
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <iframe
+                                        src={`${attachment.publicUrl}#toolbar=0&navpanes=0`}
+                                        className={styles.attachmentPreviewFrame}
+                                        title={`${attachment.filename} preview`}
+                                        onError={() =>
+                                          setBrokenPreviewIds((current) => ({
+                                            ...current,
+                                            [attachment.id]: true,
+                                          }))
+                                        }
+                                      />
+                                    );
+                                  })()}
                                 </div>
                                 <div className={styles.attachmentActions}>
                                   <a
