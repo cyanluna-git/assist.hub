@@ -129,6 +129,26 @@
   font-weight: 600;
 }
 
+.pdfReaderHeaderMeta {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.pdfReaderHeaderTitle {
+  color: var(--text-main);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdfReaderHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .pdfReaderState {
   min-height: 100%;
   display: flex;
@@ -149,6 +169,13 @@
   justify-items: center;
 }
 
+.pdfPageSurface {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
 .pdfPageLabel {
   color: var(--text-subtle);
   font-size: 12px;
@@ -157,12 +184,36 @@
   text-transform: uppercase;
 }
 
-.pdfPageImage {
+.pdfCanvas {
   width: 100%;
   height: auto;
   max-width: 100%;
   border: 1px solid rgba(15, 36, 64, 0.08);
   box-shadow: 0 18px 40px rgba(15, 36, 64, 0.12);
+  background: #fff;
+  display: block;
+}
+
+.pdfPagePlaceholder {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(15, 36, 64, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.pdfReaderErrorCard {
+  max-width: 420px;
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
   background: #fff;
 }
 
