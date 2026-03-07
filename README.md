@@ -36,6 +36,7 @@ Classroom source files, uploaded artifacts, and Gmail attachments can be moved o
 - Setup guide: [docs/artifact-storage.md](/Users/cyanluna-pro16/dev/assist.ai.mba/assist-hub/docs/artifact-storage.md)
 - Example environment variables: [.env.example](/Users/cyanluna-pro16/dev/assist.ai.mba/assist-hub/.env.example)
 - Local helper scripts: `npm run storage:apply-local`, `npm run storage:status`, `npm run storage:clear-local`
+- Classroom ops workflow: [../ops/README.md](/Users/cyanluna-pro16/dev/assist.ai.mba/ops/README.md)
 
 ## Deploy on Vercel
 

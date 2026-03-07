@@ -83,6 +83,50 @@ export function getMaterialArtifactExtensions(type: MaterialArtifactType) {
   return getMaterialArtifactDefinition(type)?.extensions ?? [];
 }
 
+export function getArtifactExtension(filename: string) {
+  const lastDot = filename.lastIndexOf(".");
+  if (lastDot === -1) {
+    return "";
+  }
+
+  return filename.slice(lastDot).toLowerCase();
+}
+
+export function isArtifactFileSupported(type: MaterialArtifactType, filename: string) {
+  const extension = getArtifactExtension(filename);
+  return getMaterialArtifactExtensions(type).includes(extension);
+}
+
+export function inferArtifactTypeFromFilename(filename: string): MaterialArtifactType | null {
+  const extension = getArtifactExtension(filename);
+
+  if (!extension) {
+    return null;
+  }
+
+  if ([".png", ".jpg", ".jpeg", ".webp", ".svg"].includes(extension)) {
+    return "INFOGRAPHIC";
+  }
+
+  if ([".mp3", ".m4a", ".wav", ".aac"].includes(extension)) {
+    return "AUDIO_OVERVIEW";
+  }
+
+  if ([".ppt", ".pptx", ".key"].includes(extension)) {
+    return "SLIDES";
+  }
+
+  if ([".xmind", ".mm"].includes(extension)) {
+    return "MINDMAP";
+  }
+
+  if (extension === ".pdf") {
+    return null;
+  }
+
+  return null;
+}
+
 function getArtifactExtensionFromUrl(url: string | null | undefined) {
   if (!url) {
     return "";

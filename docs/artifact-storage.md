@@ -102,3 +102,4 @@ This keeps normal feature commits focused on code instead of local storage mount
 - If a storage root env var is set but the target folder does not exist, file writes fail with an explicit error.
 - If a `public/*` mount does not point to the same real path as the configured root, file writes fail with an explicit error.
 - If Google Drive sync is delayed, the file may exist locally before it is visible on another machine.
+- Classroom auth/download/markdown conversion scripts are documented in [`ops/README.md`](/Users/cyanluna-pro16/dev/assist.ai.mba/ops/README.md).

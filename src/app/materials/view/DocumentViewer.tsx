@@ -9,8 +9,9 @@ import ReactMarkdown from "react-markdown";
 import {
   MATERIAL_ARTIFACT_UPLOAD_DEFINITIONS,
   canPreviewMaterialArtifact,
-  getMaterialArtifactAccept,
   getMaterialArtifactDefinition,
+  inferArtifactTypeFromFilename,
+  isArtifactFileSupported,
   getMaterialArtifactLabel,
   getMaterialArtifactPreviewKind,
   type MaterialArtifactType,
@@ -47,6 +48,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(material.artifacts?.[0]?.id ?? null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
+  const [artifactFileName, setArtifactFileName] = useState("");
   const [artifactPreviewText, setArtifactPreviewText] = useState("");
   const [artifactPreviewError, setArtifactPreviewError] = useState<string | null>(null);
   const [isArtifactPreviewLoading, setIsArtifactPreviewLoading] = useState(false);
@@ -387,11 +389,18 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
               ) : null}
               {artifacts.length ? (
                 artifacts.map((artifact) => (
-                  <button
+                  <div
                     key={artifact.id}
-                    type="button"
                     className={`${styles.artifactRow} ${selectedArtifact?.id === artifact.id ? styles.artifactRowActive : ""}`}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedArtifactId(artifact.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedArtifactId(artifact.id);
+                      }
+                    }}
                   >
                     <div className={styles.artifactMeta}>
                       <div className={styles.artifactBadges}>
@@ -458,7 +467,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                         </button>
                       </div>
                     ) : null}
-                  </button>
+                  </div>
                 ))
               ) : (
                 <p className={styles.empty}>아직 첨부된 artifact가 없습니다. 요약, 슬라이드, 인포그래픽 파일을 직접 올릴 수 있습니다.</p>
@@ -479,6 +488,25 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
 
                 startArtifactTransition(async () => {
                   try {
+                    const selectedFile = formData.get("file");
+                    if (!(selectedFile instanceof File) || !selectedFile.name) {
+                      throw new Error("업로드할 파일을 선택하세요.");
+                    }
+
+                    if (!isArtifactFileSupported(artifactType, selectedFile.name)) {
+                      const inferredType = inferArtifactTypeFromFilename(selectedFile.name);
+                      if (inferredType && inferredType !== artifactType) {
+                        setArtifactType(inferredType);
+                        throw new Error(
+                          `선택한 파일은 ${getMaterialArtifactLabel(inferredType)} 형식에 더 가깝습니다. artifact type을 자동으로 바꿨습니다. 다시 업로드하세요.`,
+                        );
+                      }
+
+                      throw new Error(
+                        `${getMaterialArtifactLabel(artifactType)}은(는) ${selectedArtifactDefinition?.extensions.join(", ")} 형식만 업로드할 수 있습니다.`,
+                      );
+                    }
+
                     const result = await uploadMaterialArtifact(formData);
                     setArtifacts((current) => {
                       const next = current.filter((item) => item.artifactType !== result.artifactType);
@@ -505,6 +533,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                       `${getMaterialArtifactLabel(result.artifactType as MaterialArtifactType)} 첨부가 저장되었습니다.`,
                     );
                     form.reset();
+                    setArtifactFileName("");
                   } catch (error) {
                     setArtifactError(error instanceof Error ? error.message : "artifact 업로드에 실패했습니다.");
                   }
@@ -542,9 +571,35 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                   name="file"
                   type="file"
                   className={styles.fileInput}
-                  accept={getMaterialArtifactAccept(artifactType)}
+                  onChange={(event) => {
+                    const nextFile = event.currentTarget.files?.[0] ?? null;
+                    const nextName = nextFile?.name ?? "";
+                    setArtifactFileName(nextName);
+                    setArtifactError(null);
+
+                    if (!nextFile?.name) {
+                      return;
+                    }
+
+                    const inferredType = inferArtifactTypeFromFilename(nextFile.name);
+                    if (inferredType && inferredType !== artifactType) {
+                      setArtifactType(inferredType);
+                      setArtifactNotice(
+                        `${nextFile.name} 파일 형식에 맞춰 artifact type을 ${getMaterialArtifactLabel(inferredType)}으로 바꿨습니다.`,
+                      );
+                      return;
+                    }
+
+                    if (!isArtifactFileSupported(artifactType, nextFile.name)) {
+                      setArtifactNotice(null);
+                      setArtifactError(
+                        `${getMaterialArtifactLabel(artifactType)}은(는) ${selectedArtifactDefinition?.extensions.join(", ")} 형식만 업로드할 수 있습니다.`,
+                      );
+                    }
+                  }}
                 />
               </label>
+              {artifactFileName ? <p className={styles.metaText}>선택한 파일: {artifactFileName}</p> : null}
               <button type="submit" className={styles.secondaryAction} disabled={isArtifactPending}>
                 <FileUp size={14} />
                 {isArtifactPending ? "업로드 중..." : "첨부 업로드"}
