@@ -15,7 +15,7 @@ import {
   getMaterialArtifactPreviewKind,
   type MaterialArtifactType,
 } from "@/lib/material-artifacts";
-import { deleteMaterialArtifact, saveMaterialNote, saveMaterialSummary, uploadMaterialArtifact } from "./actions";
+import { deleteMaterialArtifact, polishMaterialSummary, saveMaterialNote, saveMaterialSummary, uploadMaterialArtifact } from "./actions";
 import styles from "./document-viewer.module.css";
 
 type ViewerMaterial = Material & { notes: Note[]; artifacts: MaterialArtifact[] };
@@ -584,7 +584,7 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
               </div>
             <div className={styles.summaryComposer}>
               <p className={styles.summaryHelper}>
-                NotebookLM이나 다른 도구에서 만든 요약을 여기 붙여넣고 저장하세요. Markdown 형식으로 정리해 넣으면 아래에서 그대로 렌더링됩니다.
+                NotebookLM이나 다른 도구에서 만든 plain text를 그대로 붙여넣어도 됩니다. `MD로 폴리싱`은 내용을 줄이지 않고 Markdown 구조만 정리하고, `요약 저장`은 현재 편집기 내용을 그대로 저장합니다.
               </p>
               {isSummaryEditing ? (
                 <>
@@ -609,8 +609,30 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                         startSummaryTransition(async () => {
                           try {
                             setSummarySaveState("saving");
+                            const result = await polishMaterialSummary(summary);
+                            setSummary(result.aiSummary);
+                            setSummarySaveState("idle");
+                          } catch (error) {
+                            setSummarySaveState("error");
+                            setSummaryError(error instanceof Error ? error.message : "Markdown 정리에 실패했습니다.");
+                          }
+                        });
+                      }}
+                    >
+                      {isSummaryPending ? "정리 중..." : "MD로 폴리싱"}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={isSummaryPending || !summary.trim()}
+                      onClick={() => {
+                        setSummaryError(null);
+                        startSummaryTransition(async () => {
+                          try {
+                            setSummarySaveState("saving");
                             const result = await saveMaterialSummary(material.id, summary);
-                            setPersistedSummary(summary);
+                            setSummary(result.aiSummary);
+                            setPersistedSummary(result.aiSummary);
                             setSummarySaveState("saved");
                             setSummarySavedAt(result.updatedAt);
                             setIsSummaryEditing(false);
