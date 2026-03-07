@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Material, MaterialArtifact, Note } from "@prisma/client";
-import { Download, Edit3, FileUp, Focus, Headphones, ImageIcon, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Edit3, FileUp, Focus, Headphones, ImageIcon, Maximize2, Minimize2, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
@@ -30,11 +30,12 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const rootRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveVersionRef = useRef(0);
-  const [focusTarget, setFocusTarget] = useState<"document" | "summary" | null>(null);
+  const [focusTarget, setFocusTarget] = useState<"document" | "summary" | `artifact:${string}` | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [summary, setSummary] = useState(material.notes?.[0]?.aiSummary || "");
   const [persistedSummary, setPersistedSummary] = useState(material.notes?.[0]?.aiSummary || "");
   const [isSummaryEditing, setIsSummaryEditing] = useState(!material.notes?.[0]?.aiSummary);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
   const [noteContent, setNoteContent] = useState(material.notes?.[0]?.content || "");
   const [persistedNoteContent, setPersistedNoteContent] = useState(material.notes?.[0]?.content || "");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -45,27 +46,36 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   const [isSummaryPending, startSummaryTransition] = useTransition();
   const [artifacts, setArtifacts] = useState(material.artifacts || []);
   const [artifactType, setArtifactType] = useState<MaterialArtifactType>("SLIDES");
-  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(material.artifacts?.[0]?.id ?? null);
+  const [expandedArtifactTypes, setExpandedArtifactTypes] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries((material.artifacts || []).map((artifact) => [artifact.artifactType, true])),
+  );
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
   const [artifactFileName, setArtifactFileName] = useState("");
-  const [artifactPreviewText, setArtifactPreviewText] = useState("");
-  const [artifactPreviewError, setArtifactPreviewError] = useState<string | null>(null);
-  const [isArtifactPreviewLoading, setIsArtifactPreviewLoading] = useState(false);
+  const [artifactPreviewTextById, setArtifactPreviewTextById] = useState<Record<string, string>>({});
+  const [artifactPreviewErrorById, setArtifactPreviewErrorById] = useState<Record<string, string>>({});
+  const [artifactPreviewLoadingIds, setArtifactPreviewLoadingIds] = useState<Record<string, boolean>>({});
   const [isArtifactPending, startArtifactTransition] = useTransition();
   const isDirty = noteContent !== persistedNoteContent;
   const isSummaryDirty = summary !== persistedSummary;
   const isDocumentFocusMode = focusTarget === "document";
   const isSummaryFocusMode = focusTarget === "summary";
+  const focusedArtifactId = focusTarget?.startsWith("artifact:") ? focusTarget.slice("artifact:".length) : null;
+  const isArtifactFocusMode = Boolean(focusedArtifactId);
   const isAnyFocusMode = focusTarget !== null;
   const selectedArtifactDefinition = getMaterialArtifactDefinition(artifactType);
-  const selectedArtifact = useMemo(
-    () => artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? artifacts[0] ?? null,
-    [artifacts, selectedArtifactId],
+  const artifactSections = useMemo(
+    () =>
+      MATERIAL_ARTIFACT_UPLOAD_DEFINITIONS.map((definition) => ({
+        definition,
+        artifact: artifacts.find((item) => item.artifactType === definition.type) ?? null,
+      })).filter((section) => section.artifact),
+    [artifacts],
   );
-  const selectedPreviewKind = selectedArtifact
-    ? getMaterialArtifactPreviewKind(selectedArtifact.artifactType as MaterialArtifactType, selectedArtifact.publicUrl)
-    : null;
+  const focusedArtifact = useMemo(
+    () => artifacts.find((artifact) => artifact.id === focusedArtifactId) ?? null,
+    [artifacts, focusedArtifactId],
+  );
 
   async function handleFullscreenToggle() {
     const root = rootRef.current;
@@ -128,59 +138,75 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
   }, [material.id, noteContent, persistedNoteContent]);
 
   useEffect(() => {
-    if (!artifacts.length) {
-      setSelectedArtifactId(null);
+    const activeArtifacts = artifacts.filter((artifact) => {
+      const isExpanded = expandedArtifactTypes[artifact.artifactType];
+      const isFocused = artifact.id === focusedArtifactId;
+      return isExpanded || isFocused;
+    });
+
+    const textArtifacts = activeArtifacts.filter((artifact) => {
+      return getMaterialArtifactPreviewKind(artifact.artifactType as MaterialArtifactType, artifact.publicUrl) === "text";
+    });
+
+    if (!textArtifacts.length) {
       return;
     }
 
-    if (!selectedArtifactId || !artifacts.some((artifact) => artifact.id === selectedArtifactId)) {
-      setSelectedArtifactId(artifacts[0].id);
-    }
-  }, [artifacts, selectedArtifactId]);
+    const controllers: Array<() => void> = [];
 
-  useEffect(() => {
-    if (!selectedArtifact?.publicUrl || selectedPreviewKind !== "text") {
-      setArtifactPreviewText("");
-      setArtifactPreviewError(null);
-      setIsArtifactPreviewLoading(false);
-      return;
-    }
-
-    const previewUrl = selectedArtifact.publicUrl;
-    let cancelled = false;
-
-    async function loadPreviewText() {
-      try {
-        setIsArtifactPreviewLoading(true);
-        setArtifactPreviewError(null);
-        const response = await fetch(previewUrl, { cache: "no-store" });
-
-        if (!response.ok) {
-          throw new Error("텍스트 preview를 불러오지 못했습니다.");
-        }
-
-        const text = await response.text();
-        if (!cancelled) {
-          setArtifactPreviewText(text);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setArtifactPreviewError(error instanceof Error ? error.message : "텍스트 preview를 불러오지 못했습니다.");
-          setArtifactPreviewText("");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsArtifactPreviewLoading(false);
-        }
+    for (const artifact of textArtifacts) {
+      if (!artifact.publicUrl || artifactPreviewTextById[artifact.id] || artifactPreviewLoadingIds[artifact.id]) {
+        continue;
       }
-    }
 
-    void loadPreviewText();
+      let cancelled = false;
+      controllers.push(() => {
+        cancelled = true;
+      });
+
+      setArtifactPreviewLoadingIds((current) => ({ ...current, [artifact.id]: true }));
+      setArtifactPreviewErrorById((current) => ({ ...current, [artifact.id]: "" }));
+
+      void fetch(artifact.publicUrl, { cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error("텍스트 preview를 불러오지 못했습니다.");
+          }
+
+          return response.text();
+        })
+        .then((text) => {
+          if (cancelled) {
+            return;
+          }
+
+          setArtifactPreviewTextById((current) => ({ ...current, [artifact.id]: text }));
+        })
+        .catch((error) => {
+          if (cancelled) {
+            return;
+          }
+
+          setArtifactPreviewErrorById((current) => ({
+            ...current,
+            [artifact.id]: error instanceof Error ? error.message : "텍스트 preview를 불러오지 못했습니다.",
+          }));
+        })
+        .finally(() => {
+          if (cancelled) {
+            return;
+          }
+
+          setArtifactPreviewLoadingIds((current) => ({ ...current, [artifact.id]: false }));
+        });
+    }
 
     return () => {
-      cancelled = true;
+      for (const cancel of controllers) {
+        cancel();
+      }
     };
-  }, [selectedArtifact?.id, selectedArtifact?.publicUrl, selectedPreviewKind]);
+  }, [artifacts, artifactPreviewLoadingIds, artifactPreviewTextById, expandedArtifactTypes, focusedArtifactId]);
 
   function renderSaveState() {
     if (isDirty && saveState !== "saving") return "입력 중...";
@@ -203,8 +229,16 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
     return persistedSummary ? "저장된 요약" : "아직 저장 전";
   }
 
-  function renderArtifactPreview() {
-    if (!selectedArtifact) {
+  function toggleArtifactAccordion(type: MaterialArtifactType) {
+    setExpandedArtifactTypes((current) => ({ ...current, [type]: !current[type] }));
+  }
+
+  function toggleArtifactFocus(artifactId: string) {
+    setFocusTarget((current) => (current === `artifact:${artifactId}` ? null : `artifact:${artifactId}`));
+  }
+
+  function renderArtifactPreview(artifact: MaterialArtifact, variant: "panel" | "full" = "panel") {
+    if (!artifact) {
       return (
         <div className={styles.previewEmpty}>
           <p className={styles.empty}>미리볼 artifact를 아직 선택하지 않았습니다.</p>
@@ -212,9 +246,13 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
       );
     }
 
-    const label = getMaterialArtifactLabel(selectedArtifact.artifactType as MaterialArtifactType);
+    const label = getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType);
+    const previewKind = getMaterialArtifactPreviewKind(artifact.artifactType as MaterialArtifactType, artifact.publicUrl);
+    const previewText = artifactPreviewTextById[artifact.id] ?? "";
+    const previewError = artifactPreviewErrorById[artifact.id] ?? null;
+    const isPreviewLoading = Boolean(artifactPreviewLoadingIds[artifact.id]);
 
-    if (!selectedArtifact.publicUrl) {
+    if (!artifact.publicUrl) {
       return (
         <div className={styles.previewFallback}>
           <p className={styles.previewFallbackTitle}>{label} 파일 경로를 찾지 못했습니다.</p>
@@ -223,18 +261,18 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
       );
     }
 
-    switch (selectedPreviewKind) {
+    switch (previewKind) {
       case "image":
         return (
-          <div className={styles.previewImageWrap}>
-            <Image src={selectedArtifact.publicUrl} alt={label} width={1600} height={1200} className={styles.previewImage} />
+          <div className={`${styles.previewImageWrap} ${variant === "full" ? styles.previewImageWrapFull : ""}`}>
+            <Image src={artifact.publicUrl} alt={label} width={1600} height={1200} className={`${styles.previewImage} ${variant === "full" ? styles.previewImageFull : ""}`} />
           </div>
         );
       case "pdf":
         return (
           <iframe
-            src={`${selectedArtifact.publicUrl}#toolbar=0&navpanes=0`}
-            className={styles.previewFrame}
+            src={`${artifact.publicUrl}#toolbar=0&navpanes=0`}
+            className={`${styles.previewFrame} ${variant === "full" ? styles.previewFrameFull : ""}`}
             title={`${label} preview`}
           />
         );
@@ -246,27 +284,27 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
               <span>{label} 재생</span>
             </div>
             <audio controls className={styles.audioPlayer}>
-              <source src={selectedArtifact.publicUrl} />
+              <source src={artifact.publicUrl} />
             </audio>
           </div>
         );
       case "text":
-        if (isArtifactPreviewLoading) {
+        if (isPreviewLoading) {
           return <p className={styles.previewLoading}>문서를 불러오는 중...</p>;
         }
 
-        if (artifactPreviewError) {
+        if (previewError) {
           return (
             <div className={styles.previewFallback}>
               <p className={styles.previewFallbackTitle}>텍스트 preview를 불러오지 못했습니다.</p>
-              <p className={styles.previewFallbackText}>{artifactPreviewError}</p>
+              <p className={styles.previewFallbackText}>{previewError}</p>
             </div>
           );
         }
 
         return (
-          <div className={styles.previewMarkdown}>
-            <ReactMarkdown>{artifactPreviewText}</ReactMarkdown>
+          <div className={`${styles.previewMarkdown} ${variant === "full" ? styles.previewMarkdownFull : ""}`}>
+            <ReactMarkdown>{previewText}</ReactMarkdown>
           </div>
         );
       case "unsupported":
@@ -278,11 +316,11 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
               이 첨부는 페이지 안에서 바로 보여줄 수 없어 `열기` 또는 `다운로드`로 접근해야 합니다.
             </p>
             <div className={styles.previewFallbackActions}>
-              <a href={selectedArtifact.publicUrl} target="_blank" rel="noreferrer" className={styles.secondaryAction}>
+              <a href={artifact.publicUrl} target="_blank" rel="noreferrer" className={styles.secondaryAction}>
                 <Download size={14} />
                 열기
               </a>
-              <a href={selectedArtifact.publicUrl} download className={styles.secondaryAction}>
+              <a href={artifact.publicUrl} download className={styles.secondaryAction}>
                 <Download size={14} />
                 다운로드
               </a>
@@ -346,6 +384,16 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                 )}
               </div>
             </article>
+          ) : isArtifactFocusMode && focusedArtifact ? (
+            <article className={styles.summaryFocusPane}>
+              <div className={styles.summaryFocusHead}>
+                <span className={styles.tag}>{getMaterialArtifactLabel(focusedArtifact.artifactType as MaterialArtifactType)}</span>
+                <h3 className={styles.summaryFocusTitle}>{material.title}</h3>
+              </div>
+              <div className={styles.artifactFocusBody}>
+                {renderArtifactPreview(focusedArtifact, "full")}
+              </div>
+            </article>
           ) : material.type === "pdf" ? (
             <iframe src={`${material.localUrl}#toolbar=0`} className={styles.pdf} title={material.title} />
           ) : (
@@ -366,109 +414,96 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
             </div>
 
             <div className={styles.artifactList}>
-              {selectedArtifact ? (
-                <div className={styles.previewPanel}>
-                  <div className={styles.previewHeader}>
-                    <div className={styles.previewTitleWrap}>
-                      {selectedPreviewKind === "image" ? <ImageIcon size={15} /> : <FileUp size={15} />}
-                      <span className={styles.previewTitle}>
-                        {getMaterialArtifactLabel(selectedArtifact.artifactType as MaterialArtifactType)}
-                      </span>
-                    </div>
-                    <span className={styles.previewStatus}>
-                      {canPreviewMaterialArtifact(
-                        selectedArtifact.artifactType as MaterialArtifactType,
-                        selectedArtifact.publicUrl,
-                      )
-                        ? "페이지 안에서 미리보기"
-                        : "파일로 열기"}
-                    </span>
-                  </div>
-                  <div className={styles.previewStage}>{renderArtifactPreview()}</div>
-                </div>
-              ) : null}
-              {artifacts.length ? (
-                artifacts.map((artifact) => (
-                  <div
-                    key={artifact.id}
-                    className={`${styles.artifactRow} ${selectedArtifact?.id === artifact.id ? styles.artifactRowActive : ""}`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedArtifactId(artifact.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setSelectedArtifactId(artifact.id);
-                      }
-                    }}
-                  >
-                    <div className={styles.artifactMeta}>
-                      <div className={styles.artifactBadges}>
-                        <span className={styles.artifactTypeBadge}>
-                          {getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)}
-                        </span>
-                        <span className={styles.artifactStatusBadge}>{artifact.status}</span>
-                      </div>
-                      <p className={styles.artifactPath}>
-                        {artifact.generatedAt ? `업데이트 ${new Date(artifact.generatedAt).toLocaleString()}` : "업로드됨"}
-                      </p>
-                    </div>
-                    {artifact.publicUrl ? (
-                      <div
-                        className={styles.artifactActions}
-                        onClick={(event) => event.stopPropagation()}
+              {artifactSections.length ? (
+                artifactSections.map(({ definition, artifact }) =>
+                  artifact ? (
+                    <div key={artifact.id} className={styles.accordionSection}>
+                      <button
+                        type="button"
+                        className={styles.accordionHeader}
+                        onClick={() => toggleArtifactAccordion(definition.type)}
+                        aria-expanded={Boolean(expandedArtifactTypes[definition.type])}
                       >
-                        <a
-                          href={artifact.publicUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={styles.secondaryAction}
-                        >
-                          <Download size={14} />
-                          열기
-                        </a>
-                        <a href={artifact.publicUrl} download className={styles.secondaryAction}>
-                          <Download size={14} />
-                          다운로드
-                        </a>
-                        <button
-                          type="button"
-                          className={styles.secondaryAction}
-                          disabled={isArtifactPending}
-                          onClick={() => {
-                            const confirmed = window.confirm(
-                              `${getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)} 첨부를 삭제할까요?`,
-                            );
-                            if (!confirmed) {
-                              return;
-                            }
+                        <div className={styles.accordionTitleWrap}>
+                          <span className={styles.artifactTypeBadge}>{definition.label}</span>
+                          <span className={styles.artifactStatusBadge}>{artifact.status}</span>
+                        </div>
+                        <div className={styles.accordionMeta}>
+                          <span className={styles.accordionDate}>
+                            {artifact.generatedAt ? `업데이트 ${new Date(artifact.generatedAt).toLocaleString()}` : "업로드됨"}
+                          </span>
+                          {expandedArtifactTypes[definition.type] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      {expandedArtifactTypes[definition.type] ? (
+                        <div className={styles.accordionBody}>
+                          <div className={styles.previewPanel}>
+                            <div className={styles.previewHeader}>
+                              <div className={styles.previewTitleWrap}>
+                                {getMaterialArtifactPreviewKind(definition.type, artifact.publicUrl) === "image" ? <ImageIcon size={15} /> : <FileUp size={15} />}
+                                <span className={styles.previewTitle}>{definition.label}</span>
+                              </div>
+                              <span className={styles.previewStatus}>
+                                {canPreviewMaterialArtifact(definition.type, artifact.publicUrl) ? "페이지 안에서 미리보기" : "파일로 열기"}
+                              </span>
+                            </div>
+                            <div className={styles.previewStage}>{renderArtifactPreview(artifact)}</div>
+                          </div>
+                          {artifact.publicUrl ? (
+                            <div className={styles.artifactActions}>
+                              <button
+                                type="button"
+                                className={styles.secondaryAction}
+                                onClick={() => toggleArtifactFocus(artifact.id)}
+                              >
+                                <Focus size={14} />
+                                {focusedArtifactId === artifact.id ? "전체 보기 해제" : "전체 보기"}
+                              </button>
+                              <a href={artifact.publicUrl} target="_blank" rel="noreferrer" className={styles.secondaryAction}>
+                                <Download size={14} />
+                                열기
+                              </a>
+                              <a href={artifact.publicUrl} download className={styles.secondaryAction}>
+                                <Download size={14} />
+                                다운로드
+                              </a>
+                              <button
+                                type="button"
+                                className={styles.secondaryAction}
+                                disabled={isArtifactPending}
+                                onClick={() => {
+                                  const confirmed = window.confirm(`${definition.label} 첨부를 삭제할까요?`);
+                                  if (!confirmed) {
+                                    return;
+                                  }
 
-                            setArtifactError(null);
-                            setArtifactNotice(null);
-                            startArtifactTransition(async () => {
-                              try {
-                                await deleteMaterialArtifact(artifact.id);
-                                const nextArtifact = artifacts.find((item) => item.id !== artifact.id) ?? null;
-                                setArtifacts((current) => current.filter((item) => item.id !== artifact.id));
-                                if (selectedArtifactId === artifact.id) {
-                                  setSelectedArtifactId(nextArtifact?.id ?? null);
-                                }
-                                setArtifactNotice(
-                                  `${getMaterialArtifactLabel(artifact.artifactType as MaterialArtifactType)} 첨부를 삭제했습니다.`,
-                                );
-                              } catch (error) {
-                                setArtifactError(error instanceof Error ? error.message : "artifact 삭제에 실패했습니다.");
-                              }
-                            });
-                          }}
-                        >
-                          <Trash2 size={14} />
-                          삭제
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                ))
+                                  setArtifactError(null);
+                                  setArtifactNotice(null);
+                                  startArtifactTransition(async () => {
+                                    try {
+                                      await deleteMaterialArtifact(artifact.id);
+                                      setArtifacts((current) => current.filter((item) => item.id !== artifact.id));
+                                      setExpandedArtifactTypes((current) => ({ ...current, [definition.type]: false }));
+                                      if (focusedArtifactId === artifact.id) {
+                                        setFocusTarget(null);
+                                      }
+                                      setArtifactNotice(`${definition.label} 첨부를 삭제했습니다.`);
+                                    } catch (error) {
+                                      setArtifactError(error instanceof Error ? error.message : "artifact 삭제에 실패했습니다.");
+                                    }
+                                  });
+                                }}
+                              >
+                                <Trash2 size={14} />
+                                삭제
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null,
+                )
               ) : (
                 <p className={styles.empty}>아직 첨부된 artifact가 없습니다. 요약, 슬라이드, 인포그래픽 파일을 직접 올릴 수 있습니다.</p>
               )}
@@ -528,10 +563,10 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                         ...next,
                       ];
                     });
-                    setSelectedArtifactId(result.artifactId);
                     setArtifactNotice(
                       `${getMaterialArtifactLabel(result.artifactType as MaterialArtifactType)} 첨부가 저장되었습니다.`,
                     );
+                    setExpandedArtifactTypes((current) => ({ ...current, [result.artifactType]: true }));
                     form.reset();
                     setArtifactFileName("");
                   } catch (error) {
@@ -618,6 +653,14 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                   <button
                     type="button"
                     className={styles.secondaryAction}
+                    onClick={() => setIsSummaryExpanded((current) => !current)}
+                  >
+                    {isSummaryExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    {isSummaryExpanded ? "접기" : "펼치기"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
                     onClick={() => {
                       setSummaryError(null);
                       setSummary(persistedSummary);
@@ -633,85 +676,89 @@ export default function DocumentViewer({ material, mdContent }: DocumentViewerPr
                     onClick={() => setFocusTarget((current) => (current === "summary" ? null : "summary"))}
                   >
                     <Focus size={14} />
-                    {isSummaryFocusMode ? "집중 읽기 해제" : "요약 집중 읽기"}
+                    {isSummaryFocusMode ? "전체 보기 해제" : "전체 보기"}
                   </button>
                 </div>
               </div>
-            <div className={styles.summaryComposer}>
-              <p className={styles.summaryHelper}>
-                NotebookLM이나 다른 도구에서 만든 plain text를 그대로 붙여넣어도 됩니다. `MD로 폴리싱`은 내용을 줄이지 않고 Markdown 구조만 정리하고, `요약 저장`은 현재 편집기 내용을 그대로 저장합니다.
-              </p>
-              {isSummaryEditing ? (
-                <>
-                  <textarea
-                    placeholder="논문 요약을 붙여넣으세요..."
-                    className={`${styles.textarea} ${styles.summaryTextarea}`}
-                    value={summary}
-                    onChange={(event) => {
-                      setSummary(event.target.value);
-                      if (summarySaveState === "saved") {
-                        setSummarySaveState("idle");
-                      }
-                    }}
-                  />
-                  <div className={styles.summaryActions}>
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      disabled={isSummaryPending || !summary.trim()}
-                      onClick={() => {
-                        setSummaryError(null);
-                        startSummaryTransition(async () => {
-                          try {
-                            setSummarySaveState("saving");
-                            const result = await polishMaterialSummary(summary);
-                            setSummary(result.aiSummary);
+            {isSummaryExpanded ? (
+              <>
+                <div className={styles.summaryComposer}>
+                  <p className={styles.summaryHelper}>
+                    NotebookLM이나 다른 도구에서 만든 plain text를 그대로 붙여넣어도 됩니다. `MD로 폴리싱`은 내용을 줄이지 않고 Markdown 구조만 정리하고, `요약 저장`은 현재 편집기 내용을 그대로 저장합니다.
+                  </p>
+                  {isSummaryEditing ? (
+                    <>
+                      <textarea
+                        placeholder="논문 요약을 붙여넣으세요..."
+                        className={`${styles.textarea} ${styles.summaryTextarea}`}
+                        value={summary}
+                        onChange={(event) => {
+                          setSummary(event.target.value);
+                          if (summarySaveState === "saved") {
                             setSummarySaveState("idle");
-                          } catch (error) {
-                            setSummarySaveState("error");
-                            setSummaryError(error instanceof Error ? error.message : "Markdown 정리에 실패했습니다.");
                           }
-                        });
-                      }}
-                    >
-                      {isSummaryPending ? "정리 중..." : "MD로 폴리싱"}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      disabled={isSummaryPending || !summary.trim()}
-                      onClick={() => {
-                        setSummaryError(null);
-                        startSummaryTransition(async () => {
-                          try {
-                            setSummarySaveState("saving");
-                            const result = await saveMaterialSummary(material.id, summary);
-                            setSummary(result.aiSummary);
-                            setPersistedSummary(result.aiSummary);
-                            setSummarySaveState("saved");
-                            setSummarySavedAt(result.updatedAt);
-                            setIsSummaryEditing(false);
-                          } catch (error) {
-                            setSummarySaveState("error");
-                            setSummaryError(error instanceof Error ? error.message : "요약 저장에 실패했습니다.");
-                          }
-                        });
-                      }}
-                    >
-                      {isSummaryPending ? "저장 중..." : "요약 저장"}
-                    </button>
-                  </div>
-                </>
-              ) : null}
-            </div>
-            <div className={styles.summaryPreview}>
-              {summary ? (
-                <ReactMarkdown>{summary}</ReactMarkdown>
-              ) : (
-                <p className={styles.empty}>아직 저장된 요약이 없습니다. 위 입력창에 붙여넣고 저장하면 이 영역에서 바로 확인할 수 있습니다.</p>
-              )}
-              {summaryError ? <p className={styles.errorText}>{summaryError}</p> : null}
-            </div>
+                        }}
+                      />
+                      <div className={styles.summaryActions}>
+                        <button
+                          type="button"
+                          className={styles.secondaryAction}
+                          disabled={isSummaryPending || !summary.trim()}
+                          onClick={() => {
+                            setSummaryError(null);
+                            startSummaryTransition(async () => {
+                              try {
+                                setSummarySaveState("saving");
+                                const result = await polishMaterialSummary(summary);
+                                setSummary(result.aiSummary);
+                                setSummarySaveState("idle");
+                              } catch (error) {
+                                setSummarySaveState("error");
+                                setSummaryError(error instanceof Error ? error.message : "Markdown 정리에 실패했습니다.");
+                              }
+                            });
+                          }}
+                        >
+                          {isSummaryPending ? "정리 중..." : "MD로 폴리싱"}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryAction}
+                          disabled={isSummaryPending || !summary.trim()}
+                          onClick={() => {
+                            setSummaryError(null);
+                            startSummaryTransition(async () => {
+                              try {
+                                setSummarySaveState("saving");
+                                const result = await saveMaterialSummary(material.id, summary);
+                                setSummary(result.aiSummary);
+                                setPersistedSummary(result.aiSummary);
+                                setSummarySaveState("saved");
+                                setSummarySavedAt(result.updatedAt);
+                                setIsSummaryEditing(false);
+                              } catch (error) {
+                                setSummarySaveState("error");
+                                setSummaryError(error instanceof Error ? error.message : "요약 저장에 실패했습니다.");
+                              }
+                            });
+                          }}
+                        >
+                          {isSummaryPending ? "저장 중..." : "요약 저장"}
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+                <div className={styles.summaryPreview}>
+                  {summary ? (
+                    <ReactMarkdown>{summary}</ReactMarkdown>
+                  ) : (
+                    <p className={styles.empty}>아직 저장된 요약이 없습니다. 위 입력창에 붙여넣고 저장하면 이 영역에서 바로 확인할 수 있습니다.</p>
+                  )}
+                  {summaryError ? <p className={styles.errorText}>{summaryError}</p> : null}
+                </div>
+              </>
+            ) : null}
           </section>
 
           <section className={`${styles.block} ${styles.notes}`}>

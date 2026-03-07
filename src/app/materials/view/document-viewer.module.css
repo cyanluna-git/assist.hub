@@ -278,6 +278,13 @@
   line-height: 1.9;
 }
 
+.artifactFocusBody {
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  overflow: hidden;
+}
+
 .summaryFocusBody :global(h1),
 .summaryFocusBody :global(h2),
 .summaryFocusBody :global(h3) {
@@ -309,6 +316,51 @@
 .artifactList {
   display: grid;
   gap: 10px;
+}
+
+.accordionSection {
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  overflow: hidden;
+}
+
+.accordionHeader {
+  width: 100%;
+  border: 0;
+  background: #fff;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.accordionTitleWrap {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.accordionMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-subtle);
+}
+
+.accordionDate {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.accordionBody {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
 }
 
 .previewPanel {
@@ -368,10 +420,19 @@
   background: #f5f8fc;
 }
 
+.previewImageWrapFull {
+  min-height: 70vh;
+  padding: 24px;
+}
+
 .previewImage {
   width: 100%;
   max-height: 340px;
   object-fit: contain;
+}
+
+.previewImageFull {
+  max-height: 72vh;
 }
 
 .previewFrame {
@@ -380,12 +441,24 @@
   border: 0;
 }
 
+.previewFrameFull {
+  min-height: 76vh;
+}
+
 .previewMarkdown {
   max-height: 360px;
   overflow: auto;
   padding: 18px;
   color: var(--text-main);
   line-height: 1.65;
+}
+
+.previewMarkdownFull {
+  max-height: none;
+  min-height: 70vh;
+  font-size: 17px;
+  line-height: 1.9;
+  padding: 28px 32px;
 }
 
 .previewMarkdown :global(h1),
@@ -468,13 +541,6 @@
 
 .artifactActions {
   display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.artifactBadges {
-  display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
