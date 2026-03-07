@@ -68,7 +68,7 @@ export default function DocumentViewer({
   const [summary, setSummary] = useState(material.notes?.[0]?.aiSummary || "");
   const [persistedSummary, setPersistedSummary] = useState(material.notes?.[0]?.aiSummary || "");
   const [isSummaryEditing, setIsSummaryEditing] = useState(
-    () => (initialResumeView === "summary" && initialSummaryEditing) || !material.notes?.[0]?.aiSummary,
+    () => initialSummaryEditing || !material.notes?.[0]?.aiSummary,
   );
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
   const [noteContent, setNoteContent] = useState(material.notes?.[0]?.content || "");
@@ -128,7 +128,7 @@ export default function DocumentViewer({
       };
     }
 
-    if (focusTarget === "summary" || isSummaryEditing) {
+    if (focusTarget === "summary") {
       return {
         resumeView: "summary" as const,
         artifactId: undefined,
