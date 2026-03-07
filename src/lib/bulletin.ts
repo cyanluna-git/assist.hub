@@ -2,6 +2,7 @@ import prisma from "./prisma";
 import { buildGoogleOAuthClient } from "./google-auth";
 import { saveGmailAttachmentFile } from "./gmail-attachment-storage";
 import { runTrackedSync } from "./sync-state";
+import { deriveBulletinTriage } from "./bulletin-triage";
 import { google } from "googleapis";
 
 type GmailPayloadNode = {
@@ -340,6 +341,12 @@ export async function fetchBulletins() {
   }
 
   return rows.map((row) => ({
+    triage: deriveBulletinTriage({
+      sourceType: row.sourceType,
+      title: row.title,
+      content: row.content,
+      sender: row.sender,
+    }),
     ...row,
     attachments: (attachmentMap.get(row.id) ?? []).map((attachment) => ({
       id: attachment.id,

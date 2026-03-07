@@ -267,7 +267,10 @@
 .unreadBadge,
 .pinBadge,
 .archiveBadge,
-.attachmentBadge {
+.attachmentBadge,
+.categoryBadge,
+.attentionBadge,
+.suggestedPinBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -317,6 +320,40 @@
   background: rgba(41, 79, 149, 0.08);
   color: #294f95;
   border: 1px solid rgba(41, 79, 149, 0.16);
+}
+
+.categoryBadge {
+  background: rgba(53, 77, 106, 0.08);
+  color: #41566f;
+  border: 1px solid rgba(53, 77, 106, 0.16);
+}
+
+.attentionBadge {
+  border: 1px solid transparent;
+}
+
+.attentionHigh {
+  background: rgba(177, 49, 35, 0.08);
+  color: #9c2b21;
+  border-color: rgba(177, 49, 35, 0.2);
+}
+
+.attentionMedium {
+  background: rgba(173, 127, 0, 0.08);
+  color: #8b6500;
+  border-color: rgba(173, 127, 0, 0.18);
+}
+
+.attentionLow {
+  background: rgba(23, 119, 77, 0.08);
+  color: #126244;
+  border-color: rgba(23, 119, 77, 0.18);
+}
+
+.suggestedPinBadge {
+  background: rgba(13, 94, 168, 0.08);
+  color: #0f5494;
+  border: 1px dashed rgba(13, 94, 168, 0.28);
 }
 
 .date {

@@ -3,6 +3,12 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Archive, BookOpenCheck, ChevronDown, Inbox, MailOpen, Pin, Search } from "lucide-react";
+import {
+  getBulletinAttentionLabel,
+  getBulletinCategoryLabel,
+  type BulletinAttentionLevel,
+  type BulletinTriageCategory,
+} from "@/lib/bulletin-triage";
 import { toggleBulletinArchiveAction, toggleBulletinPinAction, toggleBulletinReadAction } from "./actions";
 import styles from "./bulletin.module.css";
 
@@ -16,6 +22,12 @@ type BulletinItemView = {
   isRead: boolean;
   isPinned: boolean;
   isArchived: boolean;
+  triage: {
+    category: BulletinTriageCategory;
+    attention: BulletinAttentionLevel;
+    pinSuggested: boolean;
+    matchedRules: string[];
+  };
   attachments: Array<{
     id: string;
     filename: string;
@@ -301,6 +313,21 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
                       {!item.isRead ? <span className={styles.unreadBadge}>UNREAD</span> : null}
                       {item.isPinned ? <span className={styles.pinBadge}>PINNED</span> : null}
                       {item.isArchived ? <span className={styles.archiveBadge}>ARCHIVED</span> : null}
+                      <span className={styles.categoryBadge}>{getBulletinCategoryLabel(item.triage.category)}</span>
+                      <span
+                        className={`${styles.attentionBadge} ${
+                          item.triage.attention === "HIGH"
+                            ? styles.attentionHigh
+                            : item.triage.attention === "MEDIUM"
+                              ? styles.attentionMedium
+                              : styles.attentionLow
+                        }`}
+                      >
+                        {getBulletinAttentionLabel(item.triage.attention)}
+                      </span>
+                      {item.triage.pinSuggested && !item.isPinned ? (
+                        <span className={styles.suggestedPinBadge}>추천 핀</span>
+                      ) : null}
                       {item.attachments.length ? (
                         <span className={styles.attachmentBadge}>FILES {item.attachments.length}</span>
                       ) : null}

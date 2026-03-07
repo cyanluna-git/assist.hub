@@ -82,6 +82,7 @@ export default async function BulletinPage() {
           isRead: item.isRead,
           isPinned: item.isPinned,
           isArchived: item.isArchived,
+          triage: item.triage,
           attachments: item.attachments,
         }))}
       />
