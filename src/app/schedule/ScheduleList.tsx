@@ -5,6 +5,7 @@ import { Calendar as CalendarIcon, CheckCircle, Clock, Pencil, Pin, Trash2 } fro
 import {
   deleteManualScheduleAction,
   toggleManualSchedulePinnedAction,
+  updateScheduleStatusAction,
   updateManualScheduleAction,
 } from "./actions";
 import { formatScheduleDateTime, toDateTimeLocalValue } from "./dateFormatting";
@@ -71,6 +72,22 @@ export default function ScheduleList({ items }: ScheduleListProps) {
                     : `일시: ${formatScheduleDateTime(work.startAt)}`}
                 </p>
                 {work.description ? <p className={styles.description}>{work.description}</p> : null}
+
+                <form action={updateScheduleStatusAction} className={styles.statusForm}>
+                  <input type="hidden" name="id" value={work.id} />
+                  <input type="hidden" name="source" value={work.source} />
+                  <label className={styles.statusField}>
+                    <span className={styles.statusLabel}>상태</span>
+                    <select name="status" className={styles.statusSelect} defaultValue={work.status}>
+                      <option value="TODO">TODO</option>
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="DONE">DONE</option>
+                    </select>
+                  </label>
+                  <button type="submit" className={styles.secondaryButton}>
+                    상태 저장
+                  </button>
+                </form>
 
                 {work.source === "MANUAL" ? (
                   <div className={styles.manualActions}>

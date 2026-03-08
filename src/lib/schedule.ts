@@ -164,3 +164,30 @@ export async function setManualSchedulePinned(id: string, isPinned: boolean) {
     WHERE "id" = ${id}
   `;
 }
+
+export async function updateUnifiedScheduleStatus(input: {
+  id: string;
+  source: "CLASSROOM" | "MANUAL";
+  status: string;
+}) {
+  const nextStatus = ["TODO", "IN_PROGRESS", "DONE"].includes(input.status) ? input.status : "TODO";
+
+  if (input.source === "MANUAL") {
+    await prisma.$executeRaw`
+      UPDATE "ManualScheduleItem"
+      SET
+        "status" = ${nextStatus},
+        "updatedAt" = ${new Date()}
+      WHERE "id" = ${input.id}
+    `;
+    return;
+  }
+
+  await prisma.assignment.update({
+    where: { id: input.id },
+    data: {
+      status: nextStatus,
+      submittedAt: nextStatus === "DONE" ? new Date() : null,
+    },
+  });
+}

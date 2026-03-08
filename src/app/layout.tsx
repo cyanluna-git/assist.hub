@@ -5,6 +5,8 @@ import AppShell from "./AppShell";
 import type { NavItem } from "./SidebarNav";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "aSSIST MBA Hub",
   description: "Personal Second Brain for MBA",

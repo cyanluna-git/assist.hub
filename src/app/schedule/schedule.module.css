@@ -119,6 +119,14 @@
   padding: 14px 16px;
 }
 
+.toolbarGroups,
+.toolbarGroupsRight {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .viewTabs {
   display: flex;
   flex-wrap: wrap;
@@ -145,6 +153,58 @@
   color: #0f5494;
   background: rgba(13, 94, 168, 0.08);
   border-color: rgba(13, 94, 168, 0.2);
+}
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filterChipActive {
+  color: #0f5494;
+  background: rgba(13, 94, 168, 0.08);
+  border-color: rgba(13, 94, 168, 0.22);
+}
+
+.sortField,
+.statusField {
+  display: inline-grid;
+  gap: 4px;
+}
+
+.sortLabel,
+.statusLabel {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sortSelect,
+.statusSelect {
+  min-height: 36px;
+  min-width: 132px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .monthNav {
@@ -498,6 +558,14 @@
   white-space: pre-wrap;
 }
 
+.statusForm {
+  margin-top: 12px;
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .manualActions {
   display: flex;
   flex-wrap: wrap;
@@ -568,7 +636,9 @@
   }
 
   .viewToolbar,
-  .chronologyHeader {
+  .chronologyHeader,
+  .toolbarGroups,
+  .toolbarGroupsRight {
     flex-direction: column;
     align-items: stretch;
   }
@@ -610,7 +680,8 @@
   }
 
   .inlineEditorActions,
-  .manualActions {
+  .manualActions,
+  .statusForm {
     flex-direction: column;
     align-items: stretch;
   }

@@ -5,6 +5,7 @@ import {
   createManualScheduleItem,
   deleteManualScheduleItem,
   setManualSchedulePinned,
+  updateUnifiedScheduleStatus,
   updateManualScheduleItem,
 } from "@/lib/schedule";
 import { revalidatePath } from "next/cache";
@@ -107,5 +108,23 @@ export async function toggleManualSchedulePinnedAction(formData: FormData) {
   }
 
   await setManualSchedulePinned(id, nextPinned);
+  revalidatePath("/schedule");
+}
+
+export async function updateScheduleStatusAction(formData: FormData) {
+  const id = String(formData.get("id") || "").trim();
+  const source = String(formData.get("source") || "").trim().toUpperCase();
+  const status = String(formData.get("status") || "TODO").trim().toUpperCase();
+
+  if (!id || !["CLASSROOM", "MANUAL"].includes(source)) {
+    return;
+  }
+
+  await updateUnifiedScheduleStatus({
+    id,
+    source: source as "CLASSROOM" | "MANUAL",
+    status,
+  });
+
   revalidatePath("/schedule");
 }

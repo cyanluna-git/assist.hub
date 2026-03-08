@@ -17,6 +17,8 @@ type ScheduleViewsProps = {
 };
 
 type ViewMode = "list" | "month";
+type FilterMode = "all" | "urgent" | "done" | "no_due";
+type SortMode = "priority" | "date" | "status";
 
 type DayEntry = {
   item: ScheduleItemView;
@@ -110,6 +112,52 @@ function sortItems(a: ScheduleItemView, b: ScheduleItemView) {
   return new Date(a.startAt).getTime() - new Date(b.startAt).getTime();
 }
 
+function getStatusRank(status: string) {
+  switch (status) {
+    case "TODO":
+      return 0;
+    case "IN_PROGRESS":
+      return 1;
+    case "DONE":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+function matchesFilter(item: ScheduleItemView, filterMode: FilterMode, now: Date) {
+  if (filterMode === "all") return true;
+  if (filterMode === "done") return item.status === "DONE";
+  if (filterMode === "no_due") return !item.startAt;
+
+  if (filterMode === "urgent") {
+    if (item.status === "DONE" || !item.startAt) return false;
+    const startAt = new Date(item.startAt).getTime();
+    const threshold = now.getTime() + 1000 * 60 * 60 * 24 * 7;
+    return startAt <= threshold;
+  }
+
+  return true;
+}
+
+function sortFilteredItems(items: ScheduleItemView[], sortMode: SortMode) {
+  const copy = [...items];
+
+  if (sortMode === "date") {
+    return copy.sort(sortItems);
+  }
+
+  if (sortMode === "status") {
+    return copy.sort((a, b) => {
+      const statusDiff = getStatusRank(a.status) - getStatusRank(b.status);
+      if (statusDiff !== 0) return statusDiff;
+      return sortItems(a, b);
+    });
+  }
+
+  return copy.sort(sortItems);
+}
+
 function buildCalendarCells(monthDate: Date) {
   const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   const offset = (firstDay.getDay() + 6) % 7;
@@ -161,59 +209,114 @@ function buildMonthChronology(items: ScheduleItemView[], monthDate: Date) {
 
 export default function ScheduleViews({ items, initialViewDate }: ScheduleViewsProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("priority");
   const [monthDate, setMonthDate] = useState(() => new Date(initialViewDate));
 
-  const calendarCells = useMemo(() => buildCalendarCells(monthDate), [monthDate]);
-  const chronologyGroups = useMemo(() => buildMonthChronology(items, monthDate), [items, monthDate]);
   const today = useMemo(() => startOfDay(new Date(initialViewDate)), [initialViewDate]);
+  const now = useMemo(() => new Date(initialViewDate), [initialViewDate]);
+  const filteredItems = useMemo(
+    () => sortFilteredItems(items.filter((item) => matchesFilter(item, filterMode, now)), sortMode),
+    [items, filterMode, sortMode, now],
+  );
+  const calendarCells = useMemo(() => buildCalendarCells(monthDate), [monthDate]);
+  const chronologyGroups = useMemo(() => buildMonthChronology(filteredItems, monthDate), [filteredItems, monthDate]);
 
   return (
     <section className={styles.viewsSection}>
       <div className={`card ${styles.viewToolbar}`}>
-        <div className={styles.viewTabs}>
-          <button
-            type="button"
-            className={`${styles.viewTab} ${viewMode === "list" ? styles.viewTabActive : ""}`}
-            onClick={() => setViewMode("list")}
-          >
-            <List size={15} />
-            리스트
-          </button>
-          <button
-            type="button"
-            className={`${styles.viewTab} ${viewMode === "month" ? styles.viewTabActive : ""}`}
-            onClick={() => setViewMode("month")}
-          >
-            <CalendarDays size={15} />
-            월간 보기
-          </button>
-        </div>
-
-        {viewMode === "month" ? (
-          <div className={styles.monthNav}>
+        <div className={styles.toolbarGroups}>
+          <div className={styles.viewTabs}>
             <button
               type="button"
-              className={styles.monthNavButton}
-              onClick={() => setMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
-              aria-label="이전 달"
+              className={`${styles.viewTab} ${viewMode === "list" ? styles.viewTabActive : ""}`}
+              onClick={() => setViewMode("list")}
             >
-              <ChevronLeft size={16} />
+              <List size={15} />
+              리스트
             </button>
-            <strong className={styles.monthLabel}>{formatMonthLabel(monthDate)}</strong>
             <button
               type="button"
-              className={styles.monthNavButton}
-              onClick={() => setMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
-              aria-label="다음 달"
+              className={`${styles.viewTab} ${viewMode === "month" ? styles.viewTabActive : ""}`}
+              onClick={() => setViewMode("month")}
             >
-              <ChevronRight size={16} />
+              <CalendarDays size={15} />
+              월간 보기
             </button>
           </div>
-        ) : null}
+
+          <div className={styles.filterBar}>
+            <button
+              type="button"
+              className={`${styles.filterChip} ${filterMode === "all" ? styles.filterChipActive : ""}`}
+              onClick={() => setFilterMode("all")}
+            >
+              전체
+            </button>
+            <button
+              type="button"
+              className={`${styles.filterChip} ${filterMode === "urgent" ? styles.filterChipActive : ""}`}
+              onClick={() => setFilterMode("urgent")}
+            >
+              임박
+            </button>
+            <button
+              type="button"
+              className={`${styles.filterChip} ${filterMode === "done" ? styles.filterChipActive : ""}`}
+              onClick={() => setFilterMode("done")}
+            >
+              완료
+            </button>
+            <button
+              type="button"
+              className={`${styles.filterChip} ${filterMode === "no_due" ? styles.filterChipActive : ""}`}
+              onClick={() => setFilterMode("no_due")}
+            >
+              기한없음
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.toolbarGroupsRight}>
+          <label className={styles.sortField}>
+            <span className={styles.sortLabel}>정렬</span>
+            <select
+              className={styles.sortSelect}
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as SortMode)}
+            >
+              <option value="priority">중요/일시순</option>
+              <option value="date">일시순</option>
+              <option value="status">상태순</option>
+            </select>
+          </label>
+
+          {viewMode === "month" ? (
+            <div className={styles.monthNav}>
+              <button
+                type="button"
+                className={styles.monthNavButton}
+                onClick={() => setMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+                aria-label="이전 달"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <strong className={styles.monthLabel}>{formatMonthLabel(monthDate)}</strong>
+              <button
+                type="button"
+                className={styles.monthNavButton}
+                onClick={() => setMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
+                aria-label="다음 달"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {viewMode === "list" ? (
-        <ScheduleList items={items} />
+        <ScheduleList items={filteredItems} />
       ) : (
         <div className={styles.monthLayout}>
           <section className={`card ${styles.monthPanel}`}>
@@ -227,7 +330,7 @@ export default function ScheduleViews({ items, initialViewDate }: ScheduleViewsP
 
             <div className={styles.calendarGrid}>
               {calendarCells.map((date) => {
-                const dayItems = items.filter((item) => occursOnDate(item, date)).sort(sortItems);
+                const dayItems = filteredItems.filter((item) => occursOnDate(item, date)).sort(sortItems);
                 const isCurrentMonth = date.getMonth() === monthDate.getMonth();
                 const isToday = isSameDay(date, today);
 

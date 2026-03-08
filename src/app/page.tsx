@@ -20,6 +20,8 @@ import { syncClassroomDataAction } from "./dashboard-actions";
 import DashboardContinueReading from "./DashboardContinueReading";
 import styles from "./dashboard.module.css";
 
+export const dynamic = "force-dynamic";
+
 type ActionMaterial = {
   id: string;
   title: string;
