@@ -63,7 +63,10 @@ export default function AppShell({ children, navItems, searchItems, profile }: A
         <section className={styles.userCard}>
           <div className={styles.userTop}>
             <span className={styles.avatar}>{profile.avatarLabel}</span>
-            <span className={styles.userName}>{profile.displayName}</span>
+            <div className={styles.userIdentity}>
+              <span className={styles.userName}>{profile.displayName}</span>
+              {profile.studentId ? <span className={styles.userMeta}>학번 {profile.studentId}</span> : null}
+            </div>
           </div>
           <p className={styles.userHint}>이번 주 학습 흐름을 점검하세요.</p>
           <GlobalSearch items={searchItems} compact={collapsed} />
