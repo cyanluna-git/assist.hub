@@ -621,6 +621,26 @@
   text-align: center;
 }
 
+.loadMoreRow {
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+}
+
+.loadMoreButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
   .topGrid,
   .filterControls {

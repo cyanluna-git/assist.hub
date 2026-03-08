@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
-import { ChevronRight, FileText, Search } from "lucide-react";
-import Link from "next/link";
+import { Search } from "lucide-react";
+import MaterialsLibrary from "./MaterialsLibrary";
 import styles from "./materials.module.css";
 
 export default async function MaterialsPage() {
@@ -30,39 +30,11 @@ export default async function MaterialsPage() {
         </label>
       </div>
 
-      <div className={styles.stack}>
-        {Object.entries(categorized).map(([category, items]) => {
-          if (items.length === 0) return null;
-
-          return (
-            <section key={category} className={`card ${styles.section}`}>
-              <header className={styles.sectionHead}>
-                <h2 className={styles.sectionTitle}>{category}</h2>
-                <span className={styles.count}>{items.length} files</span>
-              </header>
-
-              <ul className={styles.list}>
-                {items.map((item) => (
-                  <li key={item.id}>
-                    <Link href={`/materials/view?path=${encodeURIComponent(item.localUrl)}`} className={styles.item}>
-                      <FileText size={18} className={styles.icon} />
-                      <span>
-                        <p className={styles.itemName}>{item.title}</p>
-                        <p className={styles.itemMeta}>
-                          {item.type.toUpperCase()} • {item.isRead ? "Read" : "Unread"}
-                        </p>
-                      </span>
-                      <ChevronRight size={16} className={styles.arrow} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-
-        {!materials.length && <p className={styles.empty}>동기화된 자료가 없습니다. 대시보드에서 동기화를 먼저 실행하세요.</p>}
-      </div>
+      <MaterialsLibrary
+        sections={Object.entries(categorized)
+          .filter(([, items]) => items.length > 0)
+          .map(([name, items]) => ({ name, items }))}
+      />
     </>
   );
 }

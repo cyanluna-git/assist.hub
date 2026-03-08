@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "e2e": "playwright test",
     "prisma:generate": "prisma generate",
     "setup:init": "bash ./init.sh",
     "db:backup": "node ./scripts/db/backup-assist-db.mjs",
@@ -27,6 +28,7 @@
     "react-markdown": "^10.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

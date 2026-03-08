@@ -292,6 +292,7 @@ python3 ../ops/setup_classroom.py
 npm run dev
 npm run build
 npm run lint
+npm run e2e
 npm run setup:init
 npm run db:backup
 npm run storage:apply-local
@@ -403,6 +404,7 @@ Use this table as the operating model for the project.
 | first-time setup | `./init.sh` | creates `.env`, DB, profile, storage config |
 | start app | `npm run dev` | launches Next.js on `localhost:5103` |
 | validate app | `npm run lint` / `npm run build` | code quality and production build |
+| smoke E2E | `npm run e2e` | runs Playwright smoke coverage for dashboard, materials, bulletin, and schedule |
 | snapshot local DB | `npm run db:backup` | writes timestamped SQLite backups to `DB_BACKUP_ROOT` |
 | inspect storage mounts | `npm run storage:status` | checks real paths and symlink state |
 | apply external mounts | `npm run storage:apply-local` | links `public/*` to configured roots |

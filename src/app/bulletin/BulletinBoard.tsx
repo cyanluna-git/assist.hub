@@ -171,6 +171,7 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
   const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
   const [viewMode, setViewMode] = useState<ViewMode>("ACTIVE");
   const [keyword, setKeyword] = useState("");
+  const [visibleCount, setVisibleCount] = useState(20);
   const [brokenPreviewIds, setBrokenPreviewIds] = useState<Record<string, boolean>>({});
 
   const filteredItems = useMemo(() => {
@@ -202,6 +203,7 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
   const activeCount = items.filter((item) => !item.isArchived).length;
   const unreadCount = items.filter((item) => !item.isArchived && !item.isRead).length;
   const archivedCount = items.filter((item) => item.isArchived).length;
+  const visibleItems = filteredItems.slice(0, visibleCount);
 
   if (!items.length) {
     return (
@@ -219,28 +221,40 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
           <button
             type="button"
             className={`${styles.tabButton} ${viewMode === "ACTIVE" ? styles.tabButtonActive : ""}`}
-            onClick={() => setViewMode("ACTIVE")}
+            onClick={() => {
+              setViewMode("ACTIVE");
+              setVisibleCount(20);
+            }}
           >
             활성 공지 <span className={styles.tabCount}>{activeCount}</span>
           </button>
           <button
             type="button"
             className={`${styles.tabButton} ${viewMode === "UNREAD" ? styles.tabButtonActive : ""}`}
-            onClick={() => setViewMode("UNREAD")}
+            onClick={() => {
+              setViewMode("UNREAD");
+              setVisibleCount(20);
+            }}
           >
             읽지 않음 <span className={styles.tabCount}>{unreadCount}</span>
           </button>
           <button
             type="button"
             className={`${styles.tabButton} ${viewMode === "ARCHIVED" ? styles.tabButtonActive : ""}`}
-            onClick={() => setViewMode("ARCHIVED")}
+            onClick={() => {
+              setViewMode("ARCHIVED");
+              setVisibleCount(20);
+            }}
           >
             아카이브 <span className={styles.tabCount}>{archivedCount}</span>
           </button>
           <button
             type="button"
             className={`${styles.tabButton} ${viewMode === "ALL" ? styles.tabButtonActive : ""}`}
-            onClick={() => setViewMode("ALL")}
+            onClick={() => {
+              setViewMode("ALL");
+              setVisibleCount(20);
+            }}
           >
             전체 보기 <span className={styles.tabCount}>{items.length}</span>
           </button>
@@ -252,7 +266,10 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
             <input
               type="search"
               value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                setVisibleCount(20);
+              }}
               placeholder="제목, 발신자, 본문 검색"
               className={styles.searchInput}
             />
@@ -260,7 +277,10 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
 
           <select
             value={sourceFilter}
-            onChange={(event) => setSourceFilter(event.target.value as SourceFilter)}
+            onChange={(event) => {
+              setSourceFilter(event.target.value as SourceFilter);
+              setVisibleCount(20);
+            }}
             className={styles.select}
           >
             <option value="ALL">전체 출처</option>
@@ -270,7 +290,10 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
 
           <select
             value={dateFilter}
-            onChange={(event) => setDateFilter(event.target.value as DateFilter)}
+            onChange={(event) => {
+              setDateFilter(event.target.value as DateFilter);
+              setVisibleCount(20);
+            }}
             className={styles.select}
           >
             <option value="ALL">전체 기간</option>
@@ -288,7 +311,7 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
         </div>
       ) : (
         <section className={styles.board}>
-          {filteredItems.map((item) => {
+          {visibleItems.map((item) => {
             const isOpen = item.id === openId;
             const parsed = parseEmailContent(item.content);
             const preview = getPreview(item.content);
@@ -483,6 +506,14 @@ export default function BulletinBoard({ items }: BulletinBoardProps) {
               </article>
             );
           })}
+
+          {visibleItems.length < filteredItems.length ? (
+            <div className={styles.loadMoreRow}>
+              <button type="button" className={styles.loadMoreButton} onClick={() => setVisibleCount((current) => current + 20)}>
+                더 보기 ({filteredItems.length - visibleItems.length}개 남음)
+              </button>
+            </div>
+          ) : null}
         </section>
       )}
     </section>
