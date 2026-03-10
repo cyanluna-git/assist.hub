@@ -1,16 +1,18 @@
 import prisma from "./prisma";
 import { fetchBulletins } from "./bulletin";
 import { listMaterialArtifactLabels } from "./material-artifacts";
+import { fetchRecentExternalFeedItems } from "./rss-feeds";
 import { fetchUnifiedScheduleItems } from "./schedule";
 
 export type GlobalSearchItem = {
   id: string;
-  kind: "material" | "bulletin" | "schedule";
+  kind: "material" | "bulletin" | "schedule" | "feed";
   title: string;
   subtitle: string;
   href: string;
   keywords: string;
   artifactLabels?: string[];
+  sourceLabel?: string;
 };
 
 function formatDateLabel(date: Date | null) {
@@ -27,7 +29,7 @@ function formatDateLabel(date: Date | null) {
 }
 
 export async function fetchGlobalSearchItems() {
-  const [materials, bulletins, schedules] = await Promise.all([
+  const [materials, bulletins, schedules, feedItems] = await Promise.all([
     prisma.material.findMany({
       orderBy: { title: "asc" },
       include: {
@@ -38,6 +40,7 @@ export async function fetchGlobalSearchItems() {
     }),
     fetchBulletins(),
     fetchUnifiedScheduleItems(),
+    fetchRecentExternalFeedItems(120),
   ]);
 
   const materialItems: GlobalSearchItem[] = materials.map((item) => {
@@ -72,5 +75,15 @@ export async function fetchGlobalSearchItems() {
     keywords: [item.title, item.description || "", item.source, item.status].join(" "),
   }));
 
-  return [...materialItems, ...bulletinItems, ...scheduleItems];
+  const externalFeedSearchItems: GlobalSearchItem[] = feedItems.map((item) => ({
+    id: `feed-${item.id}`,
+    kind: "feed",
+    title: item.title,
+    subtitle: `${item.sourceLabel} · ${item.author || "외부 RSS"} · ${formatDateLabel(item.publishedAt ?? item.fetchedAt)}`,
+    href: item.url,
+    keywords: [item.title, item.summary || "", item.author || "", item.sourceLabel].join(" "),
+    sourceLabel: item.sourceLabel,
+  }));
+
+  return [...materialItems, ...bulletinItems, ...scheduleItems, ...externalFeedSearchItems];
 }

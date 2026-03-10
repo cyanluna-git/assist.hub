@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileText, Inbox, Calendar, Search, X } from "lucide-react";
+import { FileText, Inbox, Calendar, Search, X, Rss, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { GlobalSearchItem } from "@/lib/search";
 import styles from "./layout.module.css";
@@ -17,12 +17,14 @@ const kindLabelMap: Record<SearchKind, string> = {
   material: "Material",
   bulletin: "Bulletin",
   schedule: "Schedule",
+  feed: "Feed",
 };
 
 const kindIconMap = {
   material: FileText,
   bulletin: Inbox,
   schedule: Calendar,
+  feed: Rss,
 };
 
 function scoreItem(item: GlobalSearchItem, query: string) {
@@ -56,6 +58,11 @@ export default function GlobalSearch({ items, compact = false }: GlobalSearchPro
   const navigateTo = useCallback(
     (item: GlobalSearchItem) => {
       closePalette();
+      if (/^https?:\/\//.test(item.href)) {
+        window.open(item.href, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       router.push(item.href);
     },
     [closePalette, router],
@@ -197,8 +204,16 @@ export default function GlobalSearch({ items, compact = false }: GlobalSearchPro
                             ))}
                           </span>
                         ) : null}
+                        {item.kind === "feed" && item.sourceLabel ? (
+                          <span className={styles.paletteBadgeRow}>
+                            <span className={styles.paletteBadge}>{item.sourceLabel}</span>
+                          </span>
+                        ) : null}
                       </span>
-                      <span className={styles.paletteKind}>{kindLabelMap[item.kind]}</span>
+                      <span className={styles.paletteKind}>
+                        {kindLabelMap[item.kind]}
+                        {item.kind === "feed" ? <ExternalLink size={12} style={{ marginLeft: 4 }} /> : null}
+                      </span>
                     </button>
                   );
                 })

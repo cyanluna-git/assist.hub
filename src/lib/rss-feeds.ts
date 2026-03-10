@@ -23,7 +23,7 @@ export const CURATED_RSS_SOURCES = [
   },
 ] as const;
 
-type ExternalFeedItemView = {
+export type ExternalFeedItemView = {
   id: string;
   sourceId: string;
   sourceLabel: string;
