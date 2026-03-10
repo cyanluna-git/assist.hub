@@ -3,6 +3,7 @@ import prisma from "./prisma";
 export const SYNC_LABELS = {
   CLASSROOM: "Google Classroom",
   GMAIL: "Gmail Bulletin",
+  RSS: "External RSS",
 } as const;
 
 export type SyncStateKey = keyof typeof SYNC_LABELS;

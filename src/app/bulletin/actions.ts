@@ -8,6 +8,7 @@ import {
   setBulletinRead,
   syncAssistGmailBulletins,
 } from "@/lib/bulletin";
+import { syncExternalRssFeeds } from "@/lib/rss-feeds";
 
 export async function addManualBulletinAction(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
@@ -23,6 +24,12 @@ export async function addManualBulletinAction(formData: FormData) {
 
 export async function syncGmailBulletinsAction() {
   await syncAssistGmailBulletins();
+  revalidatePath("/");
+  revalidatePath("/bulletin");
+}
+
+export async function syncExternalFeedsAction() {
+  await syncExternalRssFeeds();
   revalidatePath("/");
   revalidatePath("/bulletin");
 }

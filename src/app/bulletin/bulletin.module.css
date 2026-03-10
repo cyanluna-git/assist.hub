@@ -1,6 +1,6 @@
 .topGrid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
   margin-bottom: 18px;
 }
@@ -21,6 +21,15 @@
   color: var(--text-muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.sectionEyebrow {
+  margin: 0 0 4px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .form {
@@ -302,6 +311,12 @@
   background: rgba(183, 47, 0, 0.09);
   color: #9a3614;
   border-color: rgba(183, 47, 0, 0.2);
+}
+
+.sourceBadgeFeed {
+  background: rgba(23, 119, 77, 0.1);
+  color: #126244;
+  border-color: rgba(23, 119, 77, 0.2);
 }
 
 .pinBadge {
@@ -619,6 +634,73 @@
   border-radius: var(--radius-md);
   color: var(--text-muted);
   text-align: center;
+}
+
+.feedPanel {
+  padding: 18px;
+}
+
+.feedPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.feedPanelTitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.feedList {
+  display: grid;
+  gap: 10px;
+}
+
+.feedItem {
+  padding: 14px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.feedMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.feedDate {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.feedTitleLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.feedSummary {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.feedAuthor {
+  margin: 8px 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
 }
 
 .loadMoreRow {

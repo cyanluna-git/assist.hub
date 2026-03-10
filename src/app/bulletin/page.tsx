@@ -1,12 +1,20 @@
-import { Mail, MessageSquarePlus, RefreshCw } from "lucide-react";
+import { Mail, MessageSquarePlus, RefreshCw, Rss } from "lucide-react";
 import { fetchBulletins } from "@/lib/bulletin";
+import { fetchRecentExternalFeedItems, fetchExternalFeedSources } from "@/lib/rss-feeds";
 import { fetchSyncState } from "@/lib/sync-state";
-import { addManualBulletinAction, syncGmailBulletinsAction } from "./actions";
+import { addManualBulletinAction, syncExternalFeedsAction, syncGmailBulletinsAction } from "./actions";
 import BulletinBoard from "./BulletinBoard";
+import ExternalFeedsPanel from "./ExternalFeedsPanel";
 import styles from "./bulletin.module.css";
 
 export default async function BulletinPage() {
-  const [bulletins, gmailSync] = await Promise.all([fetchBulletins(), fetchSyncState("GMAIL")]);
+  const [bulletins, externalFeedItems, externalFeedSources, gmailSync, rssSync] = await Promise.all([
+    fetchBulletins(),
+    fetchRecentExternalFeedItems(8),
+    fetchExternalFeedSources(),
+    fetchSyncState("GMAIL"),
+    fetchSyncState("RSS"),
+  ]);
   const syncToneClass =
     gmailSync.status === "SUCCESS"
       ? styles.syncToneSuccess
@@ -69,7 +77,57 @@ export default async function BulletinPage() {
             <li>기존 `token.json`에 Gmail scope가 없으면 인증을 다시 받아야 합니다.</li>
           </ul>
         </article>
+
+        <article className={`card ${styles.panel}`}>
+          <h2 className={styles.panelTitle}>
+            <Rss size={18} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
+            외부 RSS 수집
+          </h2>
+          <p className={styles.panelText}>GeekNews, OpenAI News, Hugging Face Blog를 외부 피드로 수집합니다.</p>
+          <div className={styles.syncSummary}>
+            <span
+              className={`${styles.syncBadge} ${
+                rssSync.status === "SUCCESS"
+                  ? styles.syncToneSuccess
+                  : rssSync.status === "ERROR"
+                    ? styles.syncToneError
+                    : rssSync.status === "RUNNING"
+                      ? styles.syncToneRunning
+                      : styles.syncToneIdle
+              }`}
+            >
+              {getSyncStatusLabel(rssSync.status)}
+            </span>
+            <p className={styles.syncMeta}>{getSyncStatusDescription(rssSync)}</p>
+            {rssSync.lastMessage ? <p className={styles.syncMessage}>{rssSync.lastMessage}</p> : null}
+          </div>
+
+          <form action={syncExternalFeedsAction} className={styles.form}>
+            <button type="submit" className={styles.secondaryButton}>
+              <RefreshCw size={15} />
+              RSS 동기화
+            </button>
+          </form>
+
+          <ul className={styles.helperList}>
+            {externalFeedSources.map((source) => (
+              <li key={source.id}>
+                <a href={source.feedUrl} target="_blank" rel="noreferrer" className={styles.inlineLink}>
+                  {source.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </article>
       </section>
+
+      <ExternalFeedsPanel
+        items={externalFeedItems.map((item) => ({
+          ...item,
+          publishedAt: item.publishedAt?.toISOString() ?? null,
+          fetchedAt: item.fetchedAt.toISOString(),
+        }))}
+      />
 
       <BulletinBoard
         items={bulletins.map((item) => ({

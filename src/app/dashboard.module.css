@@ -438,6 +438,19 @@
   gap: 14px;
 }
 
+.feedStatusRow {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.feedStatusMeta {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .syncHeader {
   display: flex;
   align-items: flex-start;

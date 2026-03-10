@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { fetchWorkspaceProfile } from "@/lib/profile";
 import { listMaterialArtifactLabels } from "@/lib/material-artifacts";
+import { fetchRecentExternalFeedItems } from "@/lib/rss-feeds";
 import { fetchUnifiedScheduleItems } from "@/lib/schedule";
 import { COURSE_ID, COURSE_TITLE } from "@/lib/sync";
 import { fetchSyncState } from "@/lib/sync-state";
@@ -13,6 +14,7 @@ import {
   ExternalLink,
   FileText,
   RefreshCw,
+  Rss,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -33,7 +35,7 @@ type ActionMaterial = {
 };
 
 export default async function Dashboard() {
-  const [profile, course, classroomSync, scheduleItems, unreadMaterials, materialsForSummary] = await Promise.all([
+  const [profile, course, classroomSync, rssSync, scheduleItems, unreadMaterials, materialsForSummary, externalFeeds] = await Promise.all([
     fetchWorkspaceProfile(),
     prisma.course.findUnique({
       where: { id: COURSE_ID },
@@ -42,6 +44,7 @@ export default async function Dashboard() {
       },
     }),
     fetchSyncState("CLASSROOM"),
+    fetchSyncState("RSS"),
     fetchUnifiedScheduleItems(),
     prisma.material.findMany({
       where: { isRead: false },
@@ -65,6 +68,7 @@ export default async function Dashboard() {
         },
       },
     }),
+    fetchRecentExternalFeedItems(4),
   ]);
 
   const now = new Date();
@@ -353,6 +357,61 @@ export default async function Dashboard() {
             </form>
           </div>
         </article>
+
+        <article className={`card ${styles.section}`}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <p className={styles.sectionEyebrow}>External Feeds</p>
+              <h3 className={styles.sectionTitle}>AI / Tech RSS</h3>
+            </div>
+            <Link href="/bulletin" className={styles.actionLink}>
+              Bulletin에서 보기
+            </Link>
+          </div>
+
+          <div className={styles.feedStatusRow}>
+            <span
+              className={`${styles.statusPill} ${
+                rssSync.status === "SUCCESS"
+                  ? styles.syncToneSuccess
+                  : rssSync.status === "ERROR"
+                    ? styles.syncToneError
+                    : rssSync.status === "RUNNING"
+                      ? styles.syncToneRunning
+                      : styles.syncToneIdle
+              }`}
+            >
+              {getSyncStatusLabel(rssSync.status)}
+            </span>
+            <p className={styles.feedStatusMeta}>{getSyncStatusDescription(rssSync)}</p>
+          </div>
+
+          <ul className={styles.actionList}>
+            {externalFeeds.length ? (
+              externalFeeds.map((item) => (
+                <li key={item.id}>
+                  <a href={item.url} target="_blank" rel="noreferrer" className={styles.actionRow}>
+                    <span className={styles.actionIconWrap}>
+                      <Rss size={16} className={styles.materialIcon} />
+                    </span>
+                    <div className={styles.actionContent}>
+                      <p className={styles.materialTitle}>{item.title}</p>
+                      <p className={styles.materialMeta}>
+                        {item.sourceLabel} · {formatFeedDate(item.publishedAt ?? item.fetchedAt)}
+                      </p>
+                    </div>
+                    <ArrowRight size={16} className={styles.actionArrow} />
+                  </a>
+                </li>
+              ))
+            ) : (
+              <li className={styles.emptyCard}>
+                <Rss size={16} />
+                아직 동기화된 외부 피드가 없습니다.
+              </li>
+            )}
+          </ul>
+        </article>
       </section>
 
       <section className={styles.timelineGrid}>
@@ -377,6 +436,14 @@ export default async function Dashboard() {
       </section>
     </>
   );
+}
+
+function formatFeedDate(value: Date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+    day: "numeric",
+  }).format(value);
 }
 
 function formatDateTime(value: Date) {

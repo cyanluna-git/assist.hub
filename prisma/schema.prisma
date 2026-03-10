@@ -119,6 +119,36 @@ model BulletinAttachment {
   @@unique([bulletinId, gmailAttachmentId])
 }
 
+model ExternalFeedSource {
+  id            String             @id
+  label         String
+  feedUrl       String
+  siteUrl       String?
+  sourceType    String             @default("RSS")
+  isActive      Boolean            @default(true)
+  lastFetchedAt DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  items         ExternalFeedItem[]
+}
+
+model ExternalFeedItem {
+  id          String             @id @default(uuid())
+  sourceId    String
+  externalKey String
+  title       String
+  url         String
+  summary     String?
+  author      String?
+  publishedAt DateTime?
+  fetchedAt   DateTime           @default(now())
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  source      ExternalFeedSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalKey])
+}
+
 model SyncState {
   key             String   @id
   label           String
