@@ -8,7 +8,12 @@ import {
   setBulletinRead,
   syncAssistGmailBulletins,
 } from "@/lib/bulletin";
-import { syncExternalRssFeeds } from "@/lib/rss-feeds";
+import {
+  setExternalFeedArchived,
+  setExternalFeedRead,
+  setExternalFeedSourceActive,
+  syncExternalRssFeeds,
+} from "@/lib/rss-feeds";
 
 export async function addManualBulletinAction(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
@@ -30,6 +35,45 @@ export async function syncGmailBulletinsAction() {
 
 export async function syncExternalFeedsAction() {
   await syncExternalRssFeeds();
+  revalidatePath("/");
+  revalidatePath("/bulletin");
+}
+
+export async function toggleExternalFeedReadAction(formData: FormData) {
+  const id = String(formData.get("id") || "").trim();
+  const nextRead = String(formData.get("nextRead") || "") === "true";
+
+  if (!id) {
+    return;
+  }
+
+  await setExternalFeedRead(id, nextRead);
+  revalidatePath("/");
+  revalidatePath("/bulletin");
+}
+
+export async function toggleExternalFeedArchiveAction(formData: FormData) {
+  const id = String(formData.get("id") || "").trim();
+  const nextArchived = String(formData.get("nextArchived") || "") === "true";
+
+  if (!id) {
+    return;
+  }
+
+  await setExternalFeedArchived(id, nextArchived);
+  revalidatePath("/");
+  revalidatePath("/bulletin");
+}
+
+export async function toggleExternalFeedSourceAction(formData: FormData) {
+  const id = String(formData.get("id") || "").trim();
+  const nextActive = String(formData.get("nextActive") || "") === "true";
+
+  if (!id) {
+    return;
+  }
+
+  await setExternalFeedSourceActive(id, nextActive);
   revalidatePath("/");
   revalidatePath("/bulletin");
 }

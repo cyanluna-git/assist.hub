@@ -28,10 +28,14 @@ export type ExternalFeedItemView = {
   sourceId: string;
   sourceLabel: string;
   sourceSiteUrl: string | null;
+  sourceFeedUrl: string;
+  sourceIsActive: boolean;
   title: string;
   url: string;
   summary: string | null;
   author: string | null;
+  isRead: boolean;
+  isArchived: boolean;
   publishedAt: Date | null;
   fetchedAt: Date;
 };
@@ -84,7 +88,6 @@ async function ensureExternalFeedSources() {
           label: source.label,
           feedUrl: source.feedUrl,
           siteUrl: source.siteUrl,
-          isActive: true,
           sourceType: "RSS",
         },
         create: {
@@ -104,9 +107,18 @@ export async function syncExternalRssFeeds() {
   return runTrackedSync("RSS", async () => {
     await ensureExternalFeedSources();
 
+    const activeSources = await prisma.externalFeedSource.findMany({
+      where: {
+        sourceType: "RSS",
+        isActive: true,
+        id: { in: CURATED_RSS_SOURCES.map((source) => source.id) },
+      },
+      orderBy: { label: "asc" },
+    });
+
     let syncedCount = 0;
 
-    for (const source of CURATED_RSS_SOURCES) {
+    for (const source of activeSources) {
       const feed = await parser.parseURL(source.feedUrl);
       const fetchedAt = new Date();
 
@@ -159,15 +171,22 @@ export async function syncExternalRssFeeds() {
 
     return {
       count: syncedCount,
-      message: `${CURATED_RSS_SOURCES.length}개 RSS 소스에서 ${syncedCount}건을 갱신했습니다.`,
+      message: `${activeSources.length}개 활성 RSS 소스에서 ${syncedCount}건을 갱신했습니다.`,
     };
   });
 }
 
-export async function fetchRecentExternalFeedItems(limit = 12): Promise<ExternalFeedItemView[]> {
+export async function fetchRecentExternalFeedItems(
+  limit = 12,
+  options?: { includeArchived?: boolean; activeSourcesOnly?: boolean },
+): Promise<ExternalFeedItemView[]> {
   await ensureExternalFeedSources();
 
   const items = await prisma.externalFeedItem.findMany({
+    where: {
+      ...(options?.includeArchived ? {} : { isArchived: false }),
+      source: options?.activeSourcesOnly === false ? undefined : { isActive: true },
+    },
     take: limit,
     orderBy: [{ publishedAt: "desc" }, { fetchedAt: "desc" }],
     include: {
@@ -180,10 +199,14 @@ export async function fetchRecentExternalFeedItems(limit = 12): Promise<External
     sourceId: item.sourceId,
     sourceLabel: item.source.label,
     sourceSiteUrl: item.source.siteUrl,
+    sourceFeedUrl: item.source.feedUrl,
+    sourceIsActive: item.source.isActive,
     title: item.title,
     url: item.url,
     summary: item.summary,
     author: item.author,
+    isRead: item.isRead,
+    isArchived: item.isArchived,
     publishedAt: item.publishedAt,
     fetchedAt: item.fetchedAt,
   }));
@@ -192,7 +215,28 @@ export async function fetchRecentExternalFeedItems(limit = 12): Promise<External
 export async function fetchExternalFeedSources() {
   await ensureExternalFeedSources();
   return prisma.externalFeedSource.findMany({
-    where: { isActive: true },
+    where: { sourceType: "RSS" },
     orderBy: { label: "asc" },
+  });
+}
+
+export async function setExternalFeedRead(id: string, nextRead: boolean) {
+  await prisma.externalFeedItem.update({
+    where: { id },
+    data: { isRead: nextRead },
+  });
+}
+
+export async function setExternalFeedArchived(id: string, nextArchived: boolean) {
+  await prisma.externalFeedItem.update({
+    where: { id },
+    data: { isArchived: nextArchived },
+  });
+}
+
+export async function setExternalFeedSourceActive(id: string, nextActive: boolean) {
+  await prisma.externalFeedSource.update({
+    where: { id },
+    data: { isActive: nextActive },
   });
 }

@@ -140,6 +140,8 @@ model ExternalFeedItem {
   url         String
   summary     String?
   author      String?
+  isRead      Boolean            @default(false)
+  isArchived  Boolean            @default(false)
   publishedAt DateTime?
   fetchedAt   DateTime           @default(now())
   createdAt   DateTime           @default(now())

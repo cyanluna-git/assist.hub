@@ -10,7 +10,7 @@ import styles from "./bulletin.module.css";
 export default async function BulletinPage() {
   const [bulletins, externalFeedItems, externalFeedSources, gmailSync, rssSync] = await Promise.all([
     fetchBulletins(),
-    fetchRecentExternalFeedItems(8),
+    fetchRecentExternalFeedItems(12, { includeArchived: true, activeSourcesOnly: false }),
     fetchExternalFeedSources(),
     fetchSyncState("GMAIL"),
     fetchSyncState("RSS"),
@@ -127,6 +127,7 @@ export default async function BulletinPage() {
           publishedAt: item.publishedAt?.toISOString() ?? null,
           fetchedAt: item.fetchedAt.toISOString(),
         }))}
+        sources={externalFeedSources}
       />
 
       <BulletinBoard
